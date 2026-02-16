@@ -1,7 +1,9 @@
 # News Digest
 
 [Пример готового дайджеста в Facebook](https://www.facebook.com/alex.v.krol/posts/pfbid02oj14ZFeSvyrrpcNN8dBJoJ6YsegA4gSeqtsSdhVMjkAYZU15aFuRH7msPN3EuE8al)
+
 [Пример готового дайджеста в Telehram](https://t.me/alexkrol/8510)
+
 [Пример готового дайджеста в Youtube](http://youtube.com/post/UgkxFs7bfPTzCMBtYq_UT2ttLd6TVNRenVRL?si=olNJLuQs_ZVqlarq)
 
 Полуавтоматический пайплайн для создания авторского новостного дайджеста. Chrome-расширение собирает статьи с Perplexity AI, а Claude Cowork (или любая другая LLM) превращает их в авторские комментарии на русском языке и собирает готовый дайджест.
