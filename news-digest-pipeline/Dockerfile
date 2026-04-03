@@ -6,6 +6,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     chromium \
     chromium-sandbox \
     fonts-liberation \
+    fonts-noto \
+    fonts-noto-cjk \
+    fonts-freefont-ttf \
     libnss3 \
     libatk-bridge2.0-0 \
     libdrm2 \

@@ -24,24 +24,28 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ error: 'Invalid URL' });
     }
 
-    let title = '';
-    let content = '';
+    const { title: providedTitle, content: providedContent } = req.body;
+    let title = providedTitle || '';
+    let content = providedContent || '';
 
-    try {
-      const fetched = await fetchArticleContent(url);
-      title = fetched.title;
-      content = fetched.content;
-    } catch (fetchErr) {
-      const result = insertArticle({ url, title: '', content: '', source: 'api' });
-      if (!result.duplicate) {
-        getDb().prepare(
-          `UPDATE articles SET fetch_error = ?, updated_at = datetime('now') WHERE id = ?`
-        ).run(fetchErr.message, result.id);
+    // If content was provided by client (e.g. iOS Shortcut), skip server-side fetch
+    if (!content) {
+      try {
+        const fetched = await fetchArticleContent(url);
+        title = fetched.title;
+        content = fetched.content;
+      } catch (fetchErr) {
+        const result = insertArticle({ url, title, content: '', source: 'api' });
+        if (!result.duplicate) {
+          getDb().prepare(
+            `UPDATE articles SET fetch_error = ?, updated_at = datetime('now') WHERE id = ?`
+          ).run(fetchErr.message, result.id);
+        }
+        return res.status(201).json({
+          ...result,
+          warning: `Content fetch failed: ${fetchErr.message}`,
+        });
       }
-      return res.status(201).json({
-        ...result,
-        warning: `Content fetch failed: ${fetchErr.message}`,
-      });
     }
 
     const result = insertArticle({ url, title, content, source: 'api' });
@@ -148,6 +152,52 @@ router.get('/stats', (req, res) => {
     });
   } catch (err) {
     console.error('[articles] GET /stats error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/articles/:id — update article fields (title, content)
+// Used by local-fetcher.js to enrich articles with content from real Chrome
+router.patch('/:id', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content } = req.body;
+    const db = getDb();
+
+    const article = db.prepare('SELECT id FROM articles WHERE id = ?').get(id);
+    if (!article) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+
+    const updates = [];
+    const values = [];
+
+    if (title !== undefined) {
+      updates.push('title = ?');
+      values.push(title);
+    }
+    if (content !== undefined) {
+      updates.push('content = ?');
+      values.push(content);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update. Send title and/or content.' });
+    }
+
+    updates.push("updated_at = datetime('now')");
+    // Clear fetch_error if we successfully got content
+    if (content) {
+      updates.push('fetch_error = NULL');
+    }
+
+    values.push(id);
+    db.prepare(`UPDATE articles SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+
+    const updated = db.prepare('SELECT * FROM articles WHERE id = ?').get(id);
+    res.json(updated);
+  } catch (err) {
+    console.error('[articles] PATCH /:id error:', err);
     res.status(500).json({ error: err.message });
   }
 });

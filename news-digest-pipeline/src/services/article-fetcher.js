@@ -3,6 +3,64 @@ import { chromium } from 'playwright-core';
 
 const USER_AGENT = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
 
+/**
+ * Stealth JS to inject into every page before any other scripts run.
+ * Patches the most common bot-detection vectors.
+ */
+const STEALTH_JS = `
+  // 1. Remove navigator.webdriver flag
+  Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+
+  // 2. Override navigator.plugins to look like a real browser
+  Object.defineProperty(navigator, 'plugins', {
+    get: () => {
+      const plugins = [
+        { name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer', description: 'Portable Document Format' },
+        { name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai', description: '' },
+        { name: 'Native Client', filename: 'internal-nacl-plugin', description: '' },
+      ];
+      plugins.length = 3;
+      return plugins;
+    },
+  });
+
+  // 3. Override navigator.languages
+  Object.defineProperty(navigator, 'languages', {
+    get: () => ['en-US', 'en', 'ru'],
+  });
+
+  // 4. Fix chrome.runtime to look present (Chromium detection)
+  if (!window.chrome) window.chrome = {};
+  if (!window.chrome.runtime) window.chrome.runtime = { connect: () => {}, sendMessage: () => {} };
+
+  // 5. Override permissions query to deny 'notifications' (headless tells)
+  const origQuery = window.Permissions.prototype.query;
+  window.Permissions.prototype.query = function(params) {
+    if (params.name === 'notifications') {
+      return Promise.resolve({ state: Notification.permission });
+    }
+    return origQuery.call(this, params);
+  };
+
+  // 6. Fake WebGL renderer (avoid SwiftShader detection)
+  const getParameter = WebGLRenderingContext.prototype.getParameter;
+  WebGLRenderingContext.prototype.getParameter = function(param) {
+    // UNMASKED_VENDOR_WEBGL
+    if (param === 0x9245) return 'Google Inc. (Apple)';
+    // UNMASKED_RENDERER_WEBGL
+    if (param === 0x9246) return 'ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)';
+    return getParameter.call(this, param);
+  };
+  if (typeof WebGL2RenderingContext !== 'undefined') {
+    const getParameter2 = WebGL2RenderingContext.prototype.getParameter;
+    WebGL2RenderingContext.prototype.getParameter = function(param) {
+      if (param === 0x9245) return 'Google Inc. (Apple)';
+      if (param === 0x9246) return 'ANGLE (Apple, ANGLE Metal Renderer: Apple M1 Pro, Unspecified Version)';
+      return getParameter2.call(this, param);
+    };
+  }
+`;
+
 const CONTENT_SELECTORS = [
   'article',
   '[class*="prose"]',
@@ -89,13 +147,35 @@ async function fetchWithPlaywright(url) {
   const browser = await chromium.launch({
     headless: false,  // We use --headless=new via args (bypasses bot detection better than old headless)
     executablePath,
-    args: ['--headless=new', '--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+    args: [
+      '--headless=new',
+      '--no-sandbox',
+      '--disable-setuid-sandbox',
+      '--disable-dev-shm-usage',
+      '--disable-blink-features=AutomationControlled',
+      '--disable-features=IsolateOrigins,site-per-process',
+      '--disable-infobars',
+      '--window-size=1920,1080',
+      '--start-maximized',
+      '--lang=en-US,en',
+    ],
   });
 
   try {
     const context = await browser.newContext({
       userAgent: USER_AGENT,
+      viewport: { width: 1920, height: 1080 },
+      screen: { width: 1920, height: 1080 },
+      locale: 'en-US',
+      timezoneId: 'America/New_York',
+      deviceScaleFactor: 1,
+      hasTouch: false,
+      javaScriptEnabled: true,
     });
+
+    // Inject stealth patches before any page scripts run
+    await context.addInitScript(STEALTH_JS);
+
     const page = await context.newPage();
 
     await page.goto(url, {
@@ -103,8 +183,18 @@ async function fetchWithPlaywright(url) {
       timeout: 30000,
     });
 
-    // Wait for dynamic content to render (SPA pages like Perplexity)
-    await page.waitForTimeout(5000);
+    // Wait for actual content to appear instead of a fixed timeout.
+    // Try content selectors first, then fall back to a short delay.
+    const contentSelector = CONTENT_SELECTORS.map(s => s).join(', ');
+    try {
+      await page.waitForSelector(contentSelector, { timeout: 15000 });
+      // Give a bit more time for SPA hydration
+      await page.waitForTimeout(2000);
+    } catch {
+      // Selector not found — page may use unusual markup; wait longer
+      console.log(`[article-fetcher] Content selector not found, waiting extra time...`);
+      await page.waitForTimeout(8000);
+    }
 
     const html = await page.content();
     const result = extractFromHtml(html);

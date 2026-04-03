@@ -5,13 +5,14 @@ import { initDb } from './db/index.js';
 import healthRouter from './routes/health.js';
 import articlesRouter from './routes/articles.js';
 import digestsRouter from './routes/digests.js';
+import telegramRouter from './routes/telegram.js';
 import { startQueueManager } from './services/queue-manager.js';
+import { setupTelegramBot } from './services/telegram-bot.js';
 
 const app = express();
 
 // Middleware
 app.use(express.json({ limit: '5mb' }));
-app.use(express.text({ type: '*/*', limit: '5mb' }));
 app.use(morgan('dev'));
 
 // Debug: log all incoming requests
@@ -26,6 +27,7 @@ app.use((req, res, next) => {
 app.use('/health', healthRouter);
 app.use('/api/articles', articlesRouter);
 app.use('/api/digests', digestsRouter);
+app.use('/api/telegram', telegramRouter);
 
 // Initialize
 try {
@@ -56,4 +58,9 @@ process.on('SIGTERM', () => {
 app.listen(config.port, () => {
   console.log(`[server] News Digest Pipeline running on port ${config.port}`);
   console.log(`[server] Environment: ${config.nodeEnv}`);
+
+  // Register Telegram webhook after server is listening
+  setupTelegramBot(config).catch((err) => {
+    console.error('[init] Failed to setup Telegram bot:', err.message);
+  });
 });

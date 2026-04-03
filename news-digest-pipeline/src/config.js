@@ -84,6 +84,10 @@ const appConfig = Object.freeze({
   youtubeAccessToken: process.env.YOUTUBE_ACCESS_TOKEN || '',
   youtubeChannelId: process.env.YOUTUBE_CHANNEL_ID || '',
 
+  // Telegram webhook
+  telegramWebhookSecret: process.env.TELEGRAM_WEBHOOK_SECRET || '',
+  baseUrl: process.env.BASE_URL || '',
+
   // Prompts (loaded from parent directory files)
   commentaryPrompt,
   assemblyPrompt,
