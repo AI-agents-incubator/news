@@ -1,5 +1,7 @@
 import express from 'express';
 import morgan from 'morgan';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import config from './config.js';
 import { initDb } from './db/index.js';
 import healthRouter from './routes/health.js';
@@ -8,6 +10,9 @@ import digestsRouter from './routes/digests.js';
 import telegramRouter from './routes/telegram.js';
 import { startQueueManager } from './services/queue-manager.js';
 import { setupTelegramBot } from './services/telegram-bot.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 const app = express();
 
@@ -22,6 +27,9 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// Static files (dashboard)
+app.use(express.static(join(__dirname, 'public')));
 
 // Routes
 app.use('/health', healthRouter);

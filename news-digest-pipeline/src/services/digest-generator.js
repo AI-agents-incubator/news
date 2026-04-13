@@ -1,3 +1,6 @@
+import { writeFileSync, mkdirSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 import Anthropic from '@anthropic-ai/sdk';
 import {
   updateArticleStatus,
@@ -5,9 +8,10 @@ import {
   createDigest,
   updateDigest,
   assignArticlesToDigest,
+  getDigests,
 } from '../db/index.js';
 
-const MAX_CONTENT_LENGTH = 8000;
+const MAX_CONTENT_LENGTH = 3000;
 const RETRY_ATTEMPTS = 3;
 const INTER_CALL_DELAY_MS = 200;
 
@@ -53,7 +57,7 @@ export async function generateDigest(db, articles, config) {
 
       const response = await callClaudeWithRetry(client, {
         model: config.claudeModel,
-        max_tokens: 1024,
+        max_tokens: 512,
         system: config.commentaryPrompt,
         messages: [{ role: 'user', content: userMessage }],
       });
@@ -104,7 +108,7 @@ export async function generateDigest(db, articles, config) {
 
   const assemblyResponse = await callClaudeWithRetry(client, {
     model: config.claudeModel,
-    max_tokens: 4096,
+    max_tokens: 16384,
     system: config.assemblyPrompt,
     messages: [{ role: 'user', content: assemblyUserMessage }],
   });
@@ -128,7 +132,26 @@ export async function generateDigest(db, articles, config) {
   const articleIds = articlesWithCommentary.map((a) => a.id);
   assignArticlesToDigest(articleIds, digestId);
 
+  // Save digest as .txt file
+  const filePath = saveDigestToFile(today, digestContent);
+  log.push(`Digest saved to file: ${filePath}`);
   log.push(`Digest created: ${digestId}`);
 
   return digestId;
+}
+
+function saveDigestToFile(date, content) {
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const outputDir = join(__dirname, '../../output');
+  mkdirSync(outputDir, { recursive: true });
+
+  // Determine part number based on existing files for this date
+  const existing = getDigests().filter((d) => d.date === date);
+  const part = existing.length || 1;
+
+  const filename = `digest_${date}_part${part}.txt`;
+  const filePath = join(outputDir, filename);
+  writeFileSync(filePath, content, 'utf-8');
+  console.log(`[digest-generator] Saved digest to ${filePath}`);
+  return filePath;
 }

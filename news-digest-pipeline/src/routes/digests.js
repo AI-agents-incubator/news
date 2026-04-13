@@ -57,6 +57,24 @@ router.get('/', (req, res) => {
   }
 });
 
+// GET /api/digests/latest/text — latest digest as plain text
+router.get('/latest/text', (req, res) => {
+  try {
+    const digests = getDigests();
+    if (digests.length === 0) {
+      return res.status(404).send('No digests yet');
+    }
+    const latest = digests[0];
+    if (!latest.content) {
+      return res.status(400).send('Latest digest has no content yet');
+    }
+    res.type('text/plain; charset=utf-8').send(latest.content);
+  } catch (err) {
+    console.error('[digests] GET /latest/text error:', err);
+    res.status(500).send(err.message);
+  }
+});
+
 // GET /api/digests/:id — single digest with articles
 router.get('/:id', (req, res) => {
   try {
@@ -71,6 +89,23 @@ router.get('/:id', (req, res) => {
   } catch (err) {
     console.error('[digests] GET /:id error:', err);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/digests/:id/text — plain text for copy-paste
+router.get('/:id/text', (req, res) => {
+  try {
+    const digest = getDigest(req.params.id);
+    if (!digest) {
+      return res.status(404).json({ error: 'Digest not found' });
+    }
+    if (!digest.content) {
+      return res.status(400).send('Digest has no content yet');
+    }
+    res.type('text/plain; charset=utf-8').send(digest.content);
+  } catch (err) {
+    console.error('[digests] GET /:id/text error:', err);
+    res.status(500).send(err.message);
   }
 });
 
@@ -90,6 +125,58 @@ router.post('/:id/publish', async (req, res) => {
     res.json({ digestId: digest.id, published: results });
   } catch (err) {
     console.error('[digests] POST /:id/publish error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/digests/:id/mark-copied — mark digest as copied
+router.patch('/:id/mark-copied', (req, res) => {
+  try {
+    const digest = getDigest(req.params.id);
+    if (!digest) {
+      return res.status(404).json({ error: 'Digest not found' });
+    }
+
+    const db = getDb();
+    db.prepare(
+      `UPDATE digests SET status = 'copied', updated_at = datetime('now') WHERE id = ?`
+    ).run(req.params.id);
+
+    res.json({ ok: true, id: req.params.id, status: 'copied' });
+  } catch (err) {
+    console.error('[digests] PATCH /:id/mark-copied error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// PATCH /api/digests/:id/status — update digest status (draft/published)
+router.patch('/:id/status', (req, res) => {
+  try {
+    const { status } = req.body;
+    if (!status || !['draft', 'published'].includes(status)) {
+      return res.status(400).json({ error: 'Status must be "draft" or "published"' });
+    }
+
+    const digest = getDigest(req.params.id);
+    if (!digest) {
+      return res.status(404).json({ error: 'Digest not found' });
+    }
+
+    const db = getDb();
+    if (status === 'published') {
+      db.prepare(
+        `UPDATE digests SET status = 'published', published_at = datetime('now'), updated_at = datetime('now') WHERE id = ?`
+      ).run(req.params.id);
+    } else {
+      db.prepare(
+        `UPDATE digests SET status = 'draft', published_at = NULL, updated_at = datetime('now') WHERE id = ?`
+      ).run(req.params.id);
+    }
+
+    const updated = getDigest(req.params.id);
+    res.json({ ok: true, id: req.params.id, status: updated.status, published_at: updated.published_at });
+  } catch (err) {
+    console.error('[digests] PATCH /:id/status error:', err);
     res.status(500).json({ error: err.message });
   }
 });

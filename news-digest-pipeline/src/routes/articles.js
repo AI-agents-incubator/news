@@ -186,9 +186,10 @@ router.patch('/:id', (req, res) => {
     }
 
     updates.push("updated_at = datetime('now')");
-    // Clear fetch_error if we successfully got content
+    // Reset status and clear error if we got content
     if (content) {
       updates.push('fetch_error = NULL');
+      updates.push("status = 'new'");
     }
 
     values.push(id);

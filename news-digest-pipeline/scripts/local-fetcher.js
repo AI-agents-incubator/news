@@ -83,13 +83,20 @@ function runAppleScriptMulti(script) {
 // ---------------------------------------------------------------------------
 
 async function fetchArticlesWithoutContent() {
-  const res = await fetch(`${SERVER}/api/articles?status=new&limit=50`);
-  if (!res.ok) {
-    throw new Error(`Server returned ${res.status}: ${await res.text()}`);
-  }
-  const articles = await res.json();
+  // Fetch both 'new' and 'error' articles — both may lack content
+  const [resNew, resError] = await Promise.all([
+    fetch(`${SERVER}/api/articles?status=new&limit=50`),
+    fetch(`${SERVER}/api/articles?status=error&limit=50`),
+  ]);
+  if (!resNew.ok) throw new Error(`Server returned ${resNew.status}`);
+  if (!resError.ok) throw new Error(`Server returned ${resError.status}`);
+
+  const articlesNew = await resNew.json();
+  const articlesError = await resError.json();
+  const all = [...articlesNew, ...articlesError];
+
   // Filter: content is null, empty, or very short
-  return articles.filter(a => !a.content || a.content.trim().length < 100);
+  return all.filter(a => !a.content || a.content.trim().length < 100);
 }
 
 async function sendContentToServer(articleId, title, content) {
@@ -126,8 +133,7 @@ tell application "Google Chrome"
     make new window
   end if
   tell window 1
-    set newTab to make new tab with properties {URL:"${url}"}
-    return (active tab index of window 1) as text
+    make new tab with properties {URL:"${url}"}
   end tell
 end tell`;
   return runAppleScriptMulti(script);
@@ -151,11 +157,7 @@ end tell`;
  * Get the URL of the active tab.
  */
 function getActiveTabUrl() {
-  const script = `
-tell application "Google Chrome"
-  return URL of active tab of window 1
-end tell`;
-  return runAppleScriptMulti(script);
+  return runAppleScript('tell application "Google Chrome" to get URL of active tab of front window');
 }
 
 /**

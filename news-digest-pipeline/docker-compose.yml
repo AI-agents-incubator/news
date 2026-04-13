@@ -6,6 +6,7 @@ services:
     restart: unless-stopped
     volumes:
       - ./data:/app/data
+      - ./output:/app/output
       - ./prompts:/app/prompts:ro
     env_file:
       - .env

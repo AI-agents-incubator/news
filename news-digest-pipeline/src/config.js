@@ -81,6 +81,7 @@ const appConfig = Object.freeze({
   facebookPageAccessToken: process.env.FACEBOOK_PAGE_ACCESS_TOKEN || '',
   telegramBotToken: process.env.TELEGRAM_BOT_TOKEN || '',
   telegramChatId: process.env.TELEGRAM_CHAT_ID || '',
+  telegramPublishChatId: process.env.TELEGRAM_PUBLISH_CHAT_ID || '',
   youtubeAccessToken: process.env.YOUTUBE_ACCESS_TOKEN || '',
   youtubeChannelId: process.env.YOUTUBE_CHANNEL_ID || '',
 

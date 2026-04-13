@@ -32,11 +32,12 @@ export async function publishDigest(digest, config) {
     }
   }
 
-  // Telegram
-  if (config.telegramBotToken && config.telegramChatId) {
+  // Telegram (publish to channel, not personal chat)
+  const tgPublishChat = config.telegramPublishChatId || config.telegramChatId;
+  if (config.telegramBotToken && tgPublishChat) {
     results.telegram = await publishToTelegram(
       config.telegramBotToken,
-      config.telegramChatId,
+      tgPublishChat,
       digest.content,
     );
     if (results.telegram?.messageId) {

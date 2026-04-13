@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>News Digest Dashboard</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f7fa;
+      color: #333;
+      padding: 24px;
+    }
+    .container { max-width: 1000px; margin: 0 auto; }
+    h1 { font-size: 24px; font-weight: 600; margin-bottom: 8px; }
+    .subtitle { color: #888; font-size: 13px; margin-bottom: 24px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    }
+    th {
+      background: #f0f2f5;
+      text-align: left;
+      padding: 10px 14px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      color: #666;
+      letter-spacing: 0.5px;
+    }
+    td {
+      padding: 10px 14px;
+      border-top: 1px solid #eee;
+      font-size: 13px;
+    }
+    tr:hover td { background: #fafbfc; }
+    .date-main { font-weight: 500; }
+    .date-sub { color: #999; font-size: 11px; }
+    .pub-date { color: #155724; font-size: 12px; font-weight: 500; }
+    .no-pub { color: #ccc; font-size: 11px; }
+    .status-select {
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      border: 1px solid #ddd;
+      cursor: pointer;
+      outline: none;
+    }
+    .status-select:hover { border-color: #aaa; }
+    .status-select.is-draft { background: #fff3cd; color: #856404; border-color: #ffc107; }
+    .status-select.is-published { background: #c3e6cb; color: #155724; border-color: #28a745; }
+    .btn {
+      border: none;
+      padding: 6px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.15s;
+    }
+    .btn-copy { background: #e8eaed; color: #333; }
+    .btn-copy:hover { background: #d0d3d8; }
+    .btn-copied { background: #d4edda; color: #155724; }
+    .btn-preview { background: #e3f2fd; color: #1565c0; margin-right: 6px; }
+    .btn-preview:hover { background: #bbdefb; }
+    .btn-publish { background: #4CAF50; color: #fff; margin-right: 6px; }
+    .btn-publish:hover { background: #43a047; }
+    .btn-published { background: #c3e6cb; color: #155724; margin-right: 6px; }
+    .empty { text-align: center; padding: 48px; color: #999; }
+    .refresh-note { text-align: right; font-size: 11px; color: #aaa; margin-top: 12px; }
+    .modal-overlay {
+      display: none;
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 100;
+      justify-content: center; align-items: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      max-width: 700px; width: 90%;
+      max-height: 80vh;
+      display: flex; flex-direction: column;
+    }
+    .modal-header {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 16px 20px;
+      border-bottom: 1px solid #eee;
+    }
+    .modal-header h2 { font-size: 16px; font-weight: 600; }
+    .modal-close {
+      background: none; border: none; font-size: 22px;
+      cursor: pointer; color: #999; padding: 0 4px;
+    }
+    .modal-close:hover { color: #333; }
+    .modal-body {
+      padding: 20px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>News Digest Dashboard</h1>
+    <p class="subtitle" id="subtitle">Загрузка...</p>
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Создан</th>
+          <th>Опубликован</th>
+          <th>Статей</th>
+          <th>Статус</th>
+          <th>Действия</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+    <p class="refresh-note">Автообновление каждые 30 сек</p>
+  </div>
+
+  <div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="modal-title">Превью</h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body">Загрузка...</div>
+    </div>
+  </div>
+
+  <script>
+    function fmtDatetime(isoStr) {
+      if (!isoStr) return null;
+      const d = new Date(isoStr + 'Z'); // SQLite stores UTC
+      const dd = String(d.getDate()).padStart(2, '0');
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const hh = String(d.getHours()).padStart(2, '0');
+      const mi = String(d.getMinutes()).padStart(2, '0');
+      return { date: `${dd}.${mm}.${d.getFullYear()}`, time: `${hh}:${mi}` };
+    }
+
+    async function loadDigests() {
+      try {
+        const res = await fetch('/api/digests');
+        const digests = await res.json();
+        render(digests);
+      } catch (err) {
+        console.error('Failed to load digests:', err);
+      }
+    }
+
+    function render(digests) {
+      const tbody = document.getElementById('tbody');
+      const subtitle = document.getElementById('subtitle');
+
+      if (digests.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="empty">Дайджестов пока нет</td></tr>';
+        subtitle.textContent = 'Нет дайджестов';
+        return;
+      }
+
+      subtitle.textContent = `Всего дайджестов: ${digests.length}`;
+
+      tbody.innerHTML = digests.map((d, i) => {
+        const status = d.status || 'draft';
+        const selectClass = status === 'published' ? 'is-published' : 'is-draft';
+        const hasContent = !!d.content;
+
+        // Created datetime
+        const created = fmtDatetime(d.created_at);
+        const createdHtml = created
+          ? `<span class="date-main">${created.date}</span><br><span class="date-sub">${created.time}</span>`
+          : '---';
+
+        // Published datetime
+        const pub = fmtDatetime(d.published_at);
+        const pubHtml = pub
+          ? `<span class="pub-date">${pub.date} ${pub.time}</span>`
+          : '<span class="no-pub">—</span>';
+
+        // Action buttons
+        let actionBtn = '';
+        if (!hasContent) {
+          actionBtn = '<span style="color:#ccc;font-size:12px">нет контента</span>';
+        } else {
+          const isPublished = status === 'published';
+          const publishBtn = isPublished
+            ? `<button class="btn btn-published" disabled>&#10003; Опубликовано</button>`
+            : `<button class="btn btn-publish" onclick="publishDigest('${d.id}', this)">&#128640; Опубликовать</button>`;
+          actionBtn = `<button class="btn btn-preview" onclick="previewDigest('${d.id}')">&#128065;</button>${publishBtn}<button class="btn btn-copy" onclick="copyDigest('${d.id}', this)">&#128203;</button>`;
+        }
+
+        // Status dropdown
+        const statusSelect = `<select class="status-select ${selectClass}" onchange="changeStatus('${d.id}', this)">
+          <option value="draft" ${status !== 'published' ? 'selected' : ''}>Черновик</option>
+          <option value="published" ${status === 'published' ? 'selected' : ''}>Опубликован</option>
+        </select>`;
+
+        return `<tr>
+          <td>${i + 1}</td>
+          <td>${createdHtml}</td>
+          <td>${pubHtml}</td>
+          <td>${d.articles_count || 0}</td>
+          <td>${statusSelect}</td>
+          <td>${actionBtn}</td>
+        </tr>`;
+      }).join('');
+    }
+
+    async function copyDigest(id, btn) {
+      try {
+        const res = await fetch(`/api/digests/${id}/text`);
+        const text = await res.text();
+        await navigator.clipboard.writeText(text);
+        btn.className = 'btn btn-copied';
+        btn.innerHTML = '&#10003; Скопирован';
+        btn.disabled = true;
+        btn.onclick = null;
+      } catch (err) {
+        console.error('Copy failed:', err);
+        alert('Не удалось скопировать: ' + err.message);
+      }
+    }
+
+    async function changeStatus(id, select) {
+      try {
+        const status = select.value;
+        const res = await fetch(`/api/digests/${id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        });
+        if (!res.ok) throw new Error('Server error');
+        select.className = 'status-select ' + (status === 'published' ? 'is-published' : 'is-draft');
+        // Reload to update published date
+        setTimeout(loadDigests, 300);
+      } catch (err) {
+        console.error('Status update failed:', err);
+        alert('Не удалось обновить статус');
+        loadDigests(); // reload to reset
+      }
+    }
+
+    async function publishDigest(id, btn) {
+      if (!confirm('Опубликовать дайджест во все каналы (Telegram, Facebook)?')) return;
+      btn.disabled = true;
+      btn.innerHTML = '⏳ Публикация...';
+      try {
+        const res = await fetch(`/api/digests/${id}/publish`, { method: 'POST' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Server error');
+
+        const channels = [];
+        if (data.published?.telegram) channels.push('Telegram');
+        if (data.published?.facebook) channels.push('Facebook');
+
+        btn.className = 'btn btn-published';
+        btn.innerHTML = '&#10003; Опубликовано';
+        btn.onclick = null;
+        setTimeout(loadDigests, 500);
+
+        if (channels.length > 0) {
+          alert('Опубликовано: ' + channels.join(', '));
+        } else {
+          alert('Ни один канал не настроен или публикация не удалась. Проверьте настройки.');
+        }
+      } catch (err) {
+        console.error('Publish failed:', err);
+        alert('Ошибка публикации: ' + err.message);
+        btn.disabled = false;
+        btn.innerHTML = '&#128640; Опубликовать';
+      }
+    }
+
+    async function previewDigest(id) {
+      const modal = document.getElementById('modal');
+      const body = document.getElementById('modal-body');
+      const title = document.getElementById('modal-title');
+      body.textContent = 'Загрузка...';
+      title.textContent = 'Превью дайджеста';
+      modal.classList.add('open');
+
+      try {
+        const res = await fetch(`/api/digests/${id}/text`);
+        const text = await res.text();
+        // Show first ~3 items (up to 3rd URL)
+        const lines = text.split('\n');
+        let urlCount = 0;
+        let cutoff = lines.length;
+        for (let i = 0; i < lines.length; i++) {
+          if (lines[i].match(/^https?:\/\//)) {
+            urlCount++;
+            if (urlCount >= 3) { cutoff = i + 1; break; }
+          }
+        }
+        const preview = lines.slice(0, cutoff).join('\n');
+        body.textContent = preview + (cutoff < lines.length ? '\n\n... ещё ' + (text.split(/^https?:\/\//m).length - 1 - urlCount) + ' новостей' : '');
+      } catch (err) {
+        body.textContent = 'Ошибка загрузки: ' + err.message;
+      }
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('open');
+    }
+
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+
+    loadDigests();
+    setInterval(loadDigests, 30000);
+  </script>
+</body>
+</html>
