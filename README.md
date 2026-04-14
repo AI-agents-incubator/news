@@ -1,5 +1,6 @@
-# News Digest Pipeline
+# News Digest Pipeline v1.0.0
 
+[![Version](https://img.shields.io/badge/version-1.0.0-blue)](#changelog)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![Claude API](https://img.shields.io/badge/Claude_API-Opus_4-d97706?logo=anthropic&logoColor=white)](https://www.anthropic.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
