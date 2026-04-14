@@ -21,7 +21,6 @@
 
 <p align="center">
   <img src="docs/screenshots/telegram.png" width="32%" alt="Telegram канал" />
-  <img src="docs/screenshots/download.png" width="32%" alt="Telegram бот" />
   <img src="docs/screenshots/facebook.png" width="32%" alt="Facebook пост" />
 </p>
 
