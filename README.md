@@ -1,105 +1,141 @@
 # News Digest Pipeline
 
-[Пример готового дайджеста в Facebook](https://www.facebook.com/alex.v.krol/posts/pfbid02oj14ZFeSvyrrpcNN8dBJoJ6YsegA4gSeqtsSdhVMjkAYZU15aFuRH7msPN3EuE8al)
+[![Node.js](https://img.shields.io/badge/Node.js-20+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Claude API](https://img.shields.io/badge/Claude_API-Opus_4-d97706?logo=anthropic&logoColor=white)](https://www.anthropic.com/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
+[![SQLite](https://img.shields.io/badge/SQLite-Database-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Telegram](https://img.shields.io/badge/Telegram-Bot_API-0088cc?logo=telegram&logoColor=white)](#)
+[![Facebook](https://img.shields.io/badge/Facebook-Graph_API-1877f2?logo=facebook&logoColor=white)](#)
 
-[Пример готового дайджеста в Telegram](https://t.me/alexkrol/8510)
+> Автоматизированный пайплайн: собирает новости → генерирует авторские комментарии через Claude API → публикует в Telegram, Facebook, Instagram.
 
-[Пример готового дайджеста в Youtube](http://youtube.com/post/UgkxFs7bfPTzCMBtYq_UT2ttLd6TVNRenVRL?si=olNJLuQs_ZVqlarq)
+**Примеры готовых дайджестов:**
+[Facebook](https://www.facebook.com/alex.v.krol/posts/pfbid02oj14ZFeSvyrrpcNN8dBJoJ6YsegA4gSeqtsSdhVMjkAYZU15aFuRH7msPN3EuE8al) ・ [Telegram](https://t.me/alexkrol/8510) ・ [YouTube](http://youtube.com/post/UgkxFs7bfPTzCMBtYq_UT2ttLd6TVNRenVRL?si=olNJLuQs_ZVqlarq)
 
-Автоматизированный пайплайн для создания авторских новостных дайджестов на русском языке. Собирает статьи с Perplexity AI, генерирует ироничные комментарии через Claude API и публикует в Facebook, Telegram, YouTube.
+---
+
+## Что это делает
+
+1. Вы скидываете ссылки на новости в **Telegram-бота** (или через iOS Shortcut)
+2. Когда накопилось **13+ статей** — Claude API автоматически генерирует дайджест
+3. На **дашборде** появляется готовый дайджест с кнопками публикации
+4. Одним кликом публикуется в **Telegram** и **Facebook**
+
+Без ручного копирования, без вёрстки, без рутины.
+
+---
 
 ## Архитектура
-
-### Полный пайплайн
 
 ```mermaid
 graph TB
     subgraph "📱 Вход"
-        A[iPhone / Telegram] -->|URL ссылки| B[Telegram Bot Webhook]
-        A2[Chrome Extension] -->|JSON batch| C[API /articles/batch]
+        A[iPhone / Telegram] -->|URL ссылки| B[Telegram Bot]
+        A2[Chrome Extension] -->|JSON batch| C[API]
     end
 
-    subgraph "☁️ VPS (YOUR_DOMAIN)"
+    subgraph "☁️ VPS"
         B --> D[(SQLite)]
         C --> D
         E[Queue Manager<br/>каждые 60 сек] -->|13+ статей?| F[Claude API]
         D --> E
 
-        F -->|Phase A: prompt.md| G[Комментарий к каждой статье]
-        G -->|Phase B: assembly_prompt.md| H[Сборка дайджеста]
-        H --> I[(SQLite: digests)]
-        I --> J[Dashboard<br/>YOUR_DOMAIN]
-        I --> K[Push Ntfy.sh]
-    end
-
-    subgraph "🖥️ Mac (локально)"
-        L[local-fetcher.js] -->|Chrome + AppleScript| D
-        M[fb-profile-watcher.js] -->|Patchright| N[Facebook Profile]
+        F -->|Phase A: комментарий| G[Opus 4]
+        G -->|Phase B: сборка| H[Готовый дайджест]
+        H --> I[(SQLite)]
+        I --> J[Dashboard]
     end
 
     subgraph "📤 Публикация"
-        J -->|Кнопка Опубликовать| O[Telegram канал @alexkrol]
-        J -->|Кнопка Опубликовать| P[Facebook Page Alex Krol]
-        M -->|Через 5 мин| N
+        J -->|📨 TG| O[Telegram канал]
+        J -->|📘 FB| P[Facebook Page]
+        J -->|📋 Copy| Q[Буфер обмена]
+    end
+
+    subgraph "🖥️ Mac"
+        L[local-fetcher.js] -->|Chrome| D
+        M[fb-publish.js] -->|Patchright| N[Facebook Profile]
     end
 
     style A fill:#0088cc,color:#fff
     style F fill:#d97706,color:#fff
     style J fill:#059669,color:#fff
-    style N fill:#1877f2,color:#fff
     style O fill:#0088cc,color:#fff
     style P fill:#1877f2,color:#fff
 ```
 
-### Процесс публикации
+---
 
-```mermaid
-sequenceDiagram
-    participant U as Пользователь
-    participant D as Dashboard
-    participant API as VPS API
-    participant TG as Telegram
-    participant FBP as Facebook Page
-    participant W as Mac Watcher
-    participant FBA as Facebook Profile
+## Быстрый старт
 
-    U->>D: Нажимает 🚀 Опубликовать
-    D->>API: POST /digests/:id/publish
-    
-    par Одновременно
-        API->>TG: Bot API sendMessage<br/>(разбивка по 4096 символов)
-        API->>FBP: Graph API POST /feed
-    end
-    
-    API-->>D: ✅ Опубликовано (TG + Page)
-    
-    Note over W: Каждые 5 минут проверяет
-    W->>API: GET /api/digests (новые published?)
-    API-->>W: Есть неопубликованный в профиль
-    
-    W->>FBA: Patchright: открыть Facebook<br/>вставить текст, удалить сниппеты<br/>Next → Post
-    FBA-->>W: ✅ Опубликовано
+### 1. Форк и клонирование
+
+```bash
+git clone https://github.com/YOUR_USERNAME/news.git
+cd news/news-digest-pipeline
 ```
 
-### Генерация дайджеста (Claude API)
+### 2. Настройка
+
+```bash
+cp .env.example .env
+```
+
+Заполните `.env`:
+
+```env
+# Обязательные
+ANTHROPIC_API_KEY=sk-ant-...        # Claude API ключ
+TELEGRAM_BOT_TOKEN=123456:ABC...    # Токен от @BotFather
+TELEGRAM_CHAT_ID=123456789         # Ваш Telegram user ID
+
+# Опционально (для публикации)
+TELEGRAM_PUBLISH_CHAT_ID=-100...   # ID канала для публикации
+FACEBOOK_PAGE_ID=...               # ID Facebook Page
+FACEBOOK_PAGE_ACCESS_TOKEN=...     # Page Access Token
+
+# Безопасность
+API_SECRET_KEY=...                 # Сгенерируйте: openssl rand -base64 32
+DASHBOARD_PASSWORD=...             # Отдельный пароль для дашборда
+```
+
+### 3. Запуск
+
+```bash
+npm install
+npm start
+```
+
+Дашборд: `http://localhost:3000` (логин: `admin` / ваш `DASHBOARD_PASSWORD`)
+
+### 4. Production (Docker)
+
+```bash
+docker compose up -d --build
+```
+
+---
+
+## Как работает генерация
 
 ```mermaid
 flowchart LR
     subgraph "Phase A — Комментарии"
-        A1[Статья 1] -->|prompt.md| C1[Claude API]
-        A2[Статья 2] -->|prompt.md| C2[Claude API]
-        A3[...Статья N] -->|prompt.md| C3[Claude API]
-        C1 --> R1[Комментарий 1<br/>80-150 слов]
-        C2 --> R2[Комментарий 2]
-        C3 --> R3[Комментарий N]
+        A1[Статья 1] -->|prompt.md| C1[Claude Opus]
+        A2[Статья 2] -->|prompt.md| C2[Claude Opus]
+        A3[Статья N] -->|prompt.md| C3[Claude Opus]
+        C1 --> R1[80-150 слов]
+        C2 --> R2[ироничный тон]
+        C3 --> R3[скептика]
     end
 
     subgraph "Phase B — Сборка"
-        R1 --> ASM[Claude API<br/>assembly_prompt.md]
+        R1 --> ASM[Claude Opus]
         R2 --> ASM
         R3 --> ASM
-        CFG[config.md<br/>курс, граница, хэштеги] --> ASM
-        ASM --> DIGEST["#новости<br/>1. Комментарий + URL<br/>2. Комментарий + URL<br/>...<br/>Курс (в середине)<br/>Граница + хэштеги"]
+        CFG[config.md] --> ASM
+        ASM --> DIGEST["#новости  1. ...<br/>2. ...<br/>Курс<br/>Граница<br/>Хэштеги"]
     end
 
     style C1 fill:#d97706,color:#fff
@@ -109,199 +145,175 @@ flowchart LR
     style DIGEST fill:#059669,color:#fff
 ```
 
+Два промпта управляют стилем:
+- **[prompt.md](prompt.md)** — как писать комментарий (тон, длина, формат)
+- **[assembly_prompt.md](assembly_prompt.md)** — как собирать дайджест (порядок, курс, подвал)
+- **[config.md](config.md)** — хэштеги, упоминание курса, граница
+
+---
+
 ## Dashboard
 
-**https://YOUR_DOMAIN/**
+| Функция | Описание |
+|---------|----------|
+| 👁 **Смотреть** | Превью первых 3 новостей |
+| 📨 **TG** | Публикация в Telegram канал |
+| 📘 **FB** | Публикация на Facebook Page |
+| 📋 **Копировать** | Текст в буфер обмена |
+| ✕ **Удалить** | Удалить дайджест |
+| **Статус** | Черновик / Опубликован (с датой) |
 
-Веб-дашборд для управления дайджестами:
-- Таблица всех дайджестов с датой создания и публикации
-- Кнопка **👁 Смотреть** — превью первых 3 новостей
-- Кнопка **🚀 Опубликовать** — публикация в Telegram + Facebook Page
-- Кнопка **📋 Копировать** — текст в буфер обмена
-- Статус **Черновик / Опубликован** — с сохранением даты публикации
+Защищён HTTP Basic Auth + rate limiting.
 
-## Быстрый старт (локально)
+---
 
-```bash
-cd news-digest-pipeline
-cp .env.example .env
-# Вставить ANTHROPIC_API_KEY в .env
-npm install
-npm start
-```
+## Facebook Profile (Browser Automation)
 
-Сервер запустится на `http://localhost:3000`.
-
-## Production
-
-Сервис задеплоен на VPS: **https://YOUR_DOMAIN**
-
-### Деплой
+Публикация в личный профиль через **Patchright** (stealth Playwright fork):
 
 ```bash
-# Деплой через SCP на VPS
-scp -i ~/.ssh/your_ssh_key <files> deploy-user@YOUR_VPS_IP:/srv/your-project/news-digest-pipeline/
-ssh deploy-user@YOUR_VPS_IP "cd /srv/your-project/news-digest-pipeline && docker compose up -d --build"
-```
-
-### Мониторинг
-
-```bash
-# Health check
-curl https://YOUR_DOMAIN/health
-
-# Статистика статей
-curl https://YOUR_DOMAIN/api/articles/stats
-
-# Список дайджестов
-curl https://YOUR_DOMAIN/api/digests
-```
-
-## Публикация
-
-### Автоматическая (Telegram + Facebook Page)
-
-Нажмите кнопку **🚀 Опубликовать** на дашборде. Дайджест публикуется мгновенно:
-- **Telegram**: Bot API, разбивка на части по 4096 символов
-- **Facebook Page**: Graph API v19.0
-
-### Facebook Profile (через Patchright)
-
-Публикация в личный профиль через browser automation (отдельный Chromium):
-
-```bash
-# Первый раз: залогиниться
+# Первый раз — залогиниться
 node scripts/fb-publish.js --login
 
-# Публикация дайджеста
+# Публикация
 node scripts/fb-publish.js latest
-node scripts/fb-publish.js <digest-id>
 ```
 
-Автоматический watcher (launchd, каждые 5 мин):
+Подробнее: [docs/facebook-setup.md](news-digest-pipeline/docs/facebook-setup.md) — детальное описание борьбы с Facebook bot detection.
 
-```bash
-# Установка
-bash scripts/setup-fb-watcher.sh
+---
 
-# Остановка
-launchctl unload ~/Library/LaunchAgents/com.newsdigest.fb-profile-watcher.plist
+## Медиа-пайплайны (в разработке)
+
+### Instagram (изображения)
+
+```mermaid
+flowchart LR
+    D[Дайджест] --> H[Claude Opus<br/>5-step headlines]
+    H --> T[Заголовок + буллеты]
+    TPL[Шаблон-референс] --> IMG[fal.ai / Recraft V3]
+    T --> OVR[Sharp: текст на плашке]
+    IMG --> OVR
+    OVR --> FINAL[1080×1350 PNG]
+    FINAL --> IG[Instagram API]
+
+    style H fill:#d97706,color:#fff
+    style IMG fill:#7c3aed,color:#fff
+    style FINAL fill:#059669,color:#fff
 ```
 
-### Обогащение контента (Mac)
+### Video (Reels / Shorts)
 
-Perplexity блокирует серверный fetch. Локальный скрипт открывает URL в Chrome через AppleScript:
+```mermaid
+flowchart LR
+    D[Дайджест] --> S[Claude: Storyboard<br/>6 shots × 5-15 сек]
+    S --> V[Kling 3.0 / Veo 3.1]
+    V --> C1[shot_01.mp4]
+    V --> C2[shot_02.mp4]
+    V --> C3[shot_N.mp4]
+    C1 --> FF[FFmpeg concat]
+    C2 --> FF
+    C3 --> FF
+    FF --> R[reel_final.mp4<br/>1080×1920]
 
-```bash
-node scripts/local-fetcher.js
+    style S fill:#d97706,color:#fff
+    style V fill:#7c3aed,color:#fff
+    style R fill:#059669,color:#fff
 ```
 
-Требует: Chrome → View → Developer → Allow JavaScript from Apple Events.
-
-## Структура проекта
-
-```
-.
-├── prompt.md                     # Промпт: комментарий к статье
-├── assembly_prompt.md            # Промпт: сборка дайджеста
-├── config.md                     # Настройки (хэштег, курс, граница)
-│
-├── news-digest-pipeline/
-│   ├── src/
-│   │   ├── index.js              # Express сервер
-│   │   ├── config.js             # Загрузка .env + промптов
-│   │   ├── public/
-│   │   │   └── index.html        # Dashboard
-│   │   ├── db/
-│   │   │   ├── schema.sql        # SQLite схема
-│   │   │   └── index.js          # CRUD операции
-│   │   ├── routes/
-│   │   │   ├── articles.js       # CRUD /api/articles
-│   │   │   ├── digests.js        # /api/digests + publish + status
-│   │   │   ├── telegram.js       # Telegram webhook
-│   │   │   └── health.js         # GET /health
-│   │   └── services/
-│   │       ├── article-fetcher.js    # Cheerio + Playwright fallback
-│   │       ├── digest-generator.js   # 2-фазная генерация (Claude API)
-│   │       ├── queue-manager.js      # Автотриггер при 13+ статьях
-│   │       ├── notifier.js           # Push через Ntfy.sh
-│   │       ├── telegram-bot.js       # Telegram бот (webhook)
-│   │       └── publishers/
-│   │           ├── facebook.js       # Facebook Page (Graph API)
-│   │           ├── telegram.js       # Telegram канал (Bot API, split)
-│   │           ├── youtube.js        # YouTube (placeholder)
-│   │           └── index.js          # Оркестратор
-│   ├── scripts/
-│   │   ├── fb-publish.js             # Facebook Profile (Patchright)
-│   │   ├── fb-profile-watcher.js     # Watcher для автопубликации
-│   │   ├── setup-fb-watcher.sh       # Установка launchd
-│   │   ├── local-fetcher.js          # Обогащение контента (Mac)
-│   │   └── monitor.sh               # Мониторинг VPS
-│   ├── docs/
-│   │   ├── telegram-setup.md         # Настройка Telegram
-│   │   ├── facebook-page-setup.md    # Настройка Facebook Page API
-│   │   ├── facebook-setup.md         # Facebook: полный путь (Page + Profile)
-│   │   ├── vps-setup.md              # Настройка VPS
-│   │   └── ios-shortcut-setup.md     # iOS Shortcut
-│   ├── Dockerfile
-│   ├── docker-compose.yml
-│   └── package.json
-│
-├── extension/                    # Chrome-расширение
-└── .github/workflows/
-    └── deploy.yml                # CI/CD
-```
+---
 
 ## API
 
+Все endpoints (кроме `/health`) требуют аутентификации: `Authorization: Bearer <API_SECRET_KEY>`
+
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
-| GET | `/health` | Статус сервера |
-| GET | `/` | Dashboard |
-| POST | `/api/articles` | Добавить статью по URL |
-| POST | `/api/articles/batch` | Пакетная загрузка |
-| GET | `/api/articles` | Список статей |
-| GET | `/api/articles/stats` | Статистика по статусам |
-| PATCH | `/api/articles/:id` | Обновить контент статьи |
-| DELETE | `/api/articles/:id` | Удалить статью |
-| POST | `/api/digests/generate` | Ручная генерация |
-| GET | `/api/digests` | Список дайджестов |
-| GET | `/api/digests/:id` | Дайджест с контентом |
-| GET | `/api/digests/:id/text` | Чистый текст для копирования |
-| GET | `/api/digests/latest/text` | Последний дайджест (текст) |
-| POST | `/api/digests/:id/publish` | Опубликовать (TG + FB Page) |
-| PATCH | `/api/digests/:id/status` | Сменить статус (draft/published) |
-| POST | `/api/telegram/webhook` | Telegram webhook |
+| `GET` | `/health` | Статус сервера (публичный) |
+| `GET` | `/` | Dashboard (Basic Auth) |
+| `POST` | `/api/articles` | Добавить статью по URL |
+| `POST` | `/api/articles/batch` | Пакетная загрузка |
+| `GET` | `/api/articles/stats` | Статистика |
+| `POST` | `/api/digests/generate` | Ручная генерация |
+| `GET` | `/api/digests` | Список дайджестов |
+| `GET` | `/api/digests/:id/text` | Чистый текст |
+| `POST` | `/api/digests/:id/publish` | Публикация `{platforms: ["telegram","facebook"]}` |
+| `DELETE` | `/api/digests/:id` | Удалить дайджест |
+
+---
+
+## Безопасность
+
+- API и Dashboard защищены аутентификацией (Bearer / Basic Auth)
+- Раздельные ключи для API и Dashboard
+- Rate limiting: 30 req/min (API), 10 attempts/15min (Dashboard)
+- SSRF-защита: whitelist только `perplexity.ai`
+- Timing-safe сравнение ключей
+- `.env` не в git, права `0600`
+
+Полный аудит: [SECURITY_AUDIT_2026-04-13.md](SECURITY_AUDIT_2026-04-13.md)
+
+---
+
+## Структура
+
+```
+├── prompt.md                     # Промпт: комментарий к статье
+├── assembly_prompt.md            # Промпт: сборка дайджеста
+├── config.md                     # Хэштеги, курс, граница
+│
+├── news-digest-pipeline/
+│   ├── src/
+│   │   ├── index.js              # Express + auth + rate limiting
+│   │   ├── middleware/auth.js    # Bearer + Basic Auth
+│   │   ├── db/                   # SQLite (better-sqlite3)
+│   │   ├── routes/               # API endpoints
+│   │   ├── services/             # Claude API, publishers, queue
+│   │   └── public/index.html    # Dashboard
+│   ├── scripts/
+│   │   ├── fb-publish.js         # Facebook Profile (Patchright)
+│   │   ├── local-fetcher.js      # Chrome content extraction
+│   │   └── monitor.sh           # VPS monitoring
+│   ├── production/
+│   │   └── image/                # Instagram image pipeline
+│   ├── distribution/             # Platform-specific publishers
+│   ├── docs/                     # Setup guides
+│   ├── Dockerfile
+│   └── docker-compose.yml
+│
+└── extension/                    # Chrome extension
+```
+
+---
 
 ## Документация
 
-- [Настройка Telegram](news-digest-pipeline/docs/telegram-setup.md)
-- [Настройка Facebook Page](news-digest-pipeline/docs/facebook-page-setup.md)
-- [Facebook: полный путь (Page + Profile automation)](news-digest-pipeline/docs/facebook-setup.md)
-- [Настройка VPS](news-digest-pipeline/docs/vps-setup.md)
-- [iOS Shortcut](news-digest-pipeline/docs/ios-shortcut-setup.md)
+| Тема | Файл |
+|------|------|
+| Telegram (бот + канал) | [telegram-setup.md](news-digest-pipeline/docs/telegram-setup.md) |
+| Facebook Page (Graph API) | [facebook-page-setup.md](news-digest-pipeline/docs/facebook-page-setup.md) |
+| Facebook Profile (Patchright) | [facebook-setup.md](news-digest-pipeline/docs/facebook-setup.md) |
+| VPS + Docker + Traefik | [vps-setup.md](news-digest-pipeline/docs/vps-setup.md) |
+| iOS Shortcut | [ios-shortcut-setup.md](news-digest-pipeline/docs/ios-shortcut-setup.md) |
+| Instagram Pipeline | [instagram/README.md](news-digest-pipeline/instagram/README.md) |
+| Video Pipeline | [distribution/video/README.md](news-digest-pipeline/distribution/video/README.md) |
 
-## Переменные окружения
+---
 
-| Переменная | Описание |
-|-----------|----------|
-| `ANTHROPIC_API_KEY` | Ключ Claude API |
-| `CLAUDE_MODEL` | Модель (claude-opus-4-6) |
-| `ARTICLE_THRESHOLD` | Порог автогенерации (13) |
-| `NTFY_TOPIC` | Топик для push-уведомлений |
-| `TELEGRAM_BOT_TOKEN` | Токен Telegram бота |
-| `TELEGRAM_CHAT_ID` | Chat ID для приёма URL |
-| `TELEGRAM_PUBLISH_CHAT_ID` | ID канала для публикации (YOUR_TELEGRAM_CHANNEL_ID) |
-| `TELEGRAM_WEBHOOK_SECRET` | Секрет для webhook |
-| `FACEBOOK_PAGE_ID` | ID Facebook Page |
-| `FACEBOOK_PAGE_ACCESS_TOKEN` | Page Access Token |
-| `BASE_URL` | URL сервера (https://YOUR_DOMAIN) |
+## Стек
 
-## Технологии
+| Компонент | Технология |
+|-----------|-----------|
+| Backend | Node.js 20, Express, SQLite |
+| AI | Claude API (Opus 4), Anthropic SDK |
+| Images | fal.ai, Recraft V3, Sharp |
+| Video | Kling 3.0, Veo 3.1, FFmpeg |
+| Browser | Patchright (stealth Playwright) |
+| Deploy | Docker, Traefik, Ubuntu 24.04 |
+| Notifications | Ntfy.sh |
 
-- **Backend:** Node.js 20, Express, SQLite (better-sqlite3)
-- **AI:** Claude API (Anthropic SDK), модель claude-opus-4-6
-- **Browser Automation:** Patchright (stealth Playwright fork)
-- **Deploy:** Docker, Traefik reverse proxy
-- **Notifications:** Ntfy.sh
-- **VPS:** Ubuntu 24.04, Docker, Traefik
+---
+
+## Лицензия
+
+MIT
