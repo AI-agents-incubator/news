@@ -23,7 +23,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..', '..', '..');
 dotenvConfig({ path: join(ROOT, '.env'), override: true });
 
-const SERVER = 'https://news.questtales.com';
+const SERVER = 'https://YOUR_DOMAIN';
 const OUTPUT_DIR = join(__dirname, '..', 'output');
 
 // --- Config ---

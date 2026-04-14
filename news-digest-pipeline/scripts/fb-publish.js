@@ -23,7 +23,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SERVER = 'https://news.questtales.com';
+const SERVER = 'https://YOUR_DOMAIN';
 const PROFILE_DIR = join(__dirname, '..', '.fb-profile');
 
 function log(msg) {

@@ -35,7 +35,7 @@ Severity: **Critical**
 - `news-digest-pipeline/src/index.js:31-38` serves the dashboard and mounts all API routes with no auth middleware.
 - `news-digest-pipeline/src/routes/articles.js:13-218` exposes create/read/update/delete operations for articles.
 - `news-digest-pipeline/src/routes/digests.js:16-205` exposes digest generation, listing, reading, publishing, status changes, and deletion.
-- `news-digest-pipeline/docker-compose.yml:18-24` publishes the service behind Traefik on `news.questtales.com`.
+- `news-digest-pipeline/docker-compose.yml:18-24` publishes the service behind Traefik on `YOUR_DOMAIN`.
 
 #### Impact
 

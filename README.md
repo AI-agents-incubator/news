@@ -19,7 +19,7 @@ graph TB
         A2[Chrome Extension] -->|JSON batch| C[API /articles/batch]
     end
 
-    subgraph "☁️ VPS (news.questtales.com)"
+    subgraph "☁️ VPS (YOUR_DOMAIN)"
         B --> D[(SQLite)]
         C --> D
         E[Queue Manager<br/>каждые 60 сек] -->|13+ статей?| F[Claude API]
@@ -28,7 +28,7 @@ graph TB
         F -->|Phase A: prompt.md| G[Комментарий к каждой статье]
         G -->|Phase B: assembly_prompt.md| H[Сборка дайджеста]
         H --> I[(SQLite: digests)]
-        I --> J[Dashboard<br/>news.questtales.com]
+        I --> J[Dashboard<br/>YOUR_DOMAIN]
         I --> K[Push Ntfy.sh]
     end
 
@@ -111,7 +111,7 @@ flowchart LR
 
 ## Dashboard
 
-**https://news.questtales.com/**
+**https://YOUR_DOMAIN/**
 
 Веб-дашборд для управления дайджестами:
 - Таблица всех дайджестов с датой создания и публикации
@@ -134,7 +134,7 @@ npm start
 
 ## Production
 
-Сервис задеплоен на VPS: **https://news.questtales.com**
+Сервис задеплоен на VPS: **https://YOUR_DOMAIN**
 
 ### Деплой
 
@@ -148,13 +148,13 @@ ssh deploy-user@YOUR_VPS_IP "cd /srv/your-project/news-digest-pipeline && docker
 
 ```bash
 # Health check
-curl https://news.questtales.com/health
+curl https://YOUR_DOMAIN/health
 
 # Статистика статей
-curl https://news.questtales.com/api/articles/stats
+curl https://YOUR_DOMAIN/api/articles/stats
 
 # Список дайджестов
-curl https://news.questtales.com/api/digests
+curl https://YOUR_DOMAIN/api/digests
 ```
 
 ## Публикация
@@ -295,7 +295,7 @@ node scripts/local-fetcher.js
 | `TELEGRAM_WEBHOOK_SECRET` | Секрет для webhook |
 | `FACEBOOK_PAGE_ID` | ID Facebook Page |
 | `FACEBOOK_PAGE_ACCESS_TOKEN` | Page Access Token |
-| `BASE_URL` | URL сервера (https://news.questtales.com) |
+| `BASE_URL` | URL сервера (https://YOUR_DOMAIN) |
 
 ## Технологии
 

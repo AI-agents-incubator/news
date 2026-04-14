@@ -21,7 +21,7 @@
 import { execSync } from 'child_process';
 import { load as cheerioLoad } from 'cheerio';
 
-const SERVER = 'https://news.questtales.com';
+const SERVER = 'https://YOUR_DOMAIN';
 const LOAD_WAIT_MS = 8000;       // Wait for page to load
 const BETWEEN_TABS_MS = 2000;    // Pause between processing tabs
 

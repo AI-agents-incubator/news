@@ -76,7 +76,7 @@ Host (Ubuntu 24.04)
 ```
 
 ## Network / Domain
-- **Domain:** news.questtales.com
+- **Domain:** YOUR_DOMAIN
 - **DNS:** Cloudflare (A-record → YOUR_VPS_IP, DNS only / grey cloud)
 - **HTTPS:** Let's Encrypt via certbot
 - **Reverse proxy:** nginx on host

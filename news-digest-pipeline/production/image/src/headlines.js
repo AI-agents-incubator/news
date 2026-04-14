@@ -17,7 +17,7 @@ import { config as dotenvConfig } from 'dotenv';
 
 dotenvConfig();
 
-const SERVER = 'https://news.questtales.com';
+const SERVER = 'https://YOUR_DOMAIN';
 const MODEL = 'claude-opus-4-20250514';
 
 function log(msg) {

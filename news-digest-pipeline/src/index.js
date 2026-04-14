@@ -54,11 +54,20 @@ const generateLimiter = rateLimit({
 // Health endpoint — public, no auth
 app.use('/health', healthRouter);
 
-// Dashboard (Basic Auth for static files only, not API)
+// Dashboard (Basic Auth + rate limit for brute force protection)
+const dashboardLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // 10 failed attempts per 15 min
+  message: 'Too many login attempts, try again later',
+  skipSuccessfulRequests: true, // only count 401s
+});
+
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/') || req.path === '/health') return next();
-  dashboardAuth(req, res, () => {
-    express.static(join(__dirname, 'public'))(req, res, next);
+  dashboardLimiter(req, res, () => {
+    dashboardAuth(req, res, () => {
+      express.static(join(__dirname, 'public'))(req, res, next);
+    });
   });
 });
 

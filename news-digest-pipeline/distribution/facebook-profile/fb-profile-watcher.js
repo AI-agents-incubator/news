@@ -20,7 +20,7 @@ import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SERVER = 'https://news.questtales.com';
+const SERVER = 'https://YOUR_DOMAIN';
 
 function log(msg) {
   const ts = new Date().toISOString().slice(11, 19);

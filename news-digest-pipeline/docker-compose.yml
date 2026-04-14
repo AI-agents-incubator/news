@@ -17,7 +17,7 @@ services:
       retries: 3
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.news-digest.rule=Host(`news.questtales.com`)"
+      - "traefik.http.routers.news-digest.rule=Host(`YOUR_DOMAIN`)"
       - "traefik.http.routers.news-digest.entrypoints=web,websecure"
       - "traefik.http.routers.news-digest.tls=true"
       - "traefik.http.routers.news-digest.tls.certresolver=mytlschallenge"

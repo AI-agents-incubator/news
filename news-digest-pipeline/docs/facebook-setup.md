@@ -297,7 +297,7 @@ node scripts/fb-publish.js latest
 node scripts/fb-publish.js <digest-id>
 ```
 
-Скрипт загружает текст дайджеста с сервера (`https://news.questtales.com/api/digests/{id}/text`), открывает Facebook в отдельном Chromium, имитирует действия пользователя и публикует пост. Время выполнения: ~30 секунд.
+Скрипт загружает текст дайджеста с сервера (`https://YOUR_DOMAIN/api/digests/{id}/text`), открывает Facebook в отдельном Chromium, имитирует действия пользователя и публикует пост. Время выполнения: ~30 секунд.
 
 **Данные профиля:** `.fb-profile/` (gitignored). Содержит cookies, localStorage и другие данные сессии Chromium. Если удалить — нужно снова залогиниться через `--login`.
 
@@ -336,7 +336,7 @@ node scripts/fb-publish.js <digest-id>
 
 ### 3.3. Кнопка публикации
 
-На дашборде `news.questtales.com` есть кнопка "Опубликовать", которая запускает публикацию через API-сервер. Серверная часть вызывает `publishDigest()` из `src/services/publishers/index.js`, который последовательно публикует в Facebook Page и Telegram.
+На дашборде `YOUR_DOMAIN` есть кнопка "Опубликовать", которая запускает публикацию через API-сервер. Серверная часть вызывает `publishDigest()` из `src/services/publishers/index.js`, который последовательно публикует в Facebook Page и Telegram.
 
 Публикация в личный профиль Facebook запускается отдельно через `scripts/fb-publish.js` (требует доступ к GUI браузера, не работает на headless сервере).
 

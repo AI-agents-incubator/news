@@ -21,7 +21,7 @@
 ### Адрес webhook
 
 ```
-https://news.questtales.com/api/telegram/webhook
+https://YOUR_DOMAIN/api/telegram/webhook
 ```
 
 Webhook регистрируется автоматически при запуске сервера через Telegram Bot API (`setWebhook`). Для этого необходимо задать переменную `BASE_URL`.
@@ -122,7 +122,7 @@ Telegram ограничивает длину одного сообщения **4
 | `TELEGRAM_CHAT_ID` | ID личного чата пользователя (для приёма URL) | `YOUR_TELEGRAM_USER_ID` |
 | `TELEGRAM_PUBLISH_CHAT_ID` | ID канала (для публикации дайджестов) | `YOUR_TELEGRAM_CHANNEL_ID` |
 | `TELEGRAM_WEBHOOK_SECRET` | Секретный токен для верификации webhook | произвольная строка |
-| `BASE_URL` | Базовый URL сервера (для регистрации webhook) | `https://news.questtales.com` |
+| `BASE_URL` | Базовый URL сервера (для регистрации webhook) | `https://YOUR_DOMAIN` |
 
 Все переменные задаются в `.env` файле или в `docker-compose.yml`.
 
