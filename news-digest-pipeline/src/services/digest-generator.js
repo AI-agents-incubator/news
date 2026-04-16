@@ -145,6 +145,29 @@ export async function generateDigest(db, articles, config) {
   log.push(`Digest saved to file: ${filePath}`);
   log.push(`Digest created: ${digestId}`);
 
+  // Clean up source Telegram messages for articles that came from the bot.
+  // Best-effort: bot can only delete its own messages in private chats; admin
+  // rights needed in groups. Failures are silently ignored.
+  if (config.telegramBotToken) {
+    const { deleteTelegramMessage } = await import('./telegram-bot.js');
+    const seen = new Set();
+    let deleted = 0;
+    let failed = 0;
+    for (const a of articlesWithCommentary) {
+      if (!a.source_chat_id || !a.source_message_id) continue;
+      const key = `${a.source_chat_id}:${a.source_message_id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      try {
+        const ok = await deleteTelegramMessage(config.telegramBotToken, a.source_chat_id, Number(a.source_message_id));
+        if (ok) deleted++; else failed++;
+      } catch {
+        failed++;
+      }
+    }
+    log.push(`Telegram source cleanup: deleted=${deleted}, failed=${failed}`);
+  }
+
   return digestId;
 }
 

@@ -16,6 +16,15 @@ export function initDb(dbPath) {
   const schema = readFileSync(join(__dirname, 'schema.sql'), 'utf-8');
   db.exec(schema);
 
+  // Idempotent migrations for existing DBs
+  const articleCols = new Set(db.prepare('PRAGMA table_info(articles)').all().map((c) => c.name));
+  if (!articleCols.has('source_chat_id')) {
+    db.exec('ALTER TABLE articles ADD COLUMN source_chat_id TEXT');
+  }
+  if (!articleCols.has('source_message_id')) {
+    db.exec('ALTER TABLE articles ADD COLUMN source_message_id TEXT');
+  }
+
   return db;
 }
 
@@ -24,7 +33,7 @@ export function getDb() {
   return db;
 }
 
-export function insertArticle({ url, title, content, source = 'extension' }) {
+export function insertArticle({ url, title, content, source = 'extension', sourceChatId = null, sourceMessageId = null }) {
   const existing = db.prepare('SELECT id, url, title, status FROM articles WHERE url = ?').get(url);
   if (existing) {
     return { ...existing, duplicate: true };
@@ -32,8 +41,9 @@ export function insertArticle({ url, title, content, source = 'extension' }) {
 
   const id = uuidv4();
   db.prepare(
-    `INSERT INTO articles (id, url, title, content, source) VALUES (?, ?, ?, ?, ?)`
-  ).run(id, url, title || null, content || null, source);
+    `INSERT INTO articles (id, url, title, content, source, source_chat_id, source_message_id)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  ).run(id, url, title || null, content || null, source, sourceChatId, sourceMessageId);
 
   return { id, url, title, status: 'new', duplicate: false };
 }

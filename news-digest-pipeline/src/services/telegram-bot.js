@@ -99,9 +99,25 @@ async function handleGenerate(botToken, chatId, config) {
 }
 
 /**
+ * Delete a message via Telegram Bot API. Returns true on success.
+ * In private chats the bot can only delete its own messages; in groups/channels
+ * it needs admin rights with can_delete_messages.
+ */
+export async function deleteTelegramMessage(botToken, chatId, messageId) {
+  const url = `https://api.telegram.org/bot${botToken}/deleteMessage`;
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chatId, message_id: messageId }),
+  });
+  const data = await resp.json();
+  return !!data.ok;
+}
+
+/**
  * Handle incoming message with URLs.
  */
-async function handleUrls(botToken, chatId, text, config) {
+async function handleUrls(botToken, chatId, messageId, text, config) {
   const urls = text.match(URL_REGEX);
 
   if (!urls || urls.length === 0) {
@@ -140,6 +156,8 @@ async function handleUrls(botToken, chatId, text, config) {
       title: '',
       content: '',
       source: 'telegram',
+      sourceChatId: String(chatId),
+      sourceMessageId: messageId != null ? String(messageId) : null,
     });
 
     if (result.duplicate) {
@@ -211,7 +229,7 @@ export async function handleTelegramUpdate(update, config) {
   }
 
   // Otherwise try to extract URLs
-  await handleUrls(botToken, chatId, text, config);
+  await handleUrls(botToken, chatId, message.message_id, text, config);
 }
 
 /**
