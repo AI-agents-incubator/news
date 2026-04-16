@@ -9,6 +9,7 @@ import {
   updateDigest,
   assignArticlesToDigest,
   getDigests,
+  getDigest,
 } from '../db/index.js';
 
 const MAX_CONTENT_LENGTH = 3000;
@@ -145,10 +146,18 @@ export async function generateDigest(db, articles, config) {
   log.push(`Digest saved to file: ${filePath}`);
   log.push(`Digest created: ${digestId}`);
 
-  // Clean up source Telegram messages for articles that came from the bot.
-  // Best-effort: bot can only delete its own messages in private chats; admin
-  // rights needed in groups. Failures are silently ignored.
-  if (config.telegramBotToken) {
+  // Clean up source Telegram messages ONLY after confirming the digest was
+  // assembled successfully: digest row exists, content is non-empty, and the
+  // `#новости` marker is present. If anything looks off, skip cleanup so the
+  // source messages remain available for retry.
+  const saved = getDigest(digestId);
+  const digestOk = saved && typeof saved.content === 'string'
+    && saved.content.length > 100
+    && saved.content.includes('#новости');
+
+  if (!digestOk) {
+    log.push('Skipping source cleanup: digest not confirmed valid');
+  } else if (config.telegramBotToken) {
     const { deleteTelegramMessage } = await import('./telegram-bot.js');
     const seen = new Set();
     let deleted = 0;
