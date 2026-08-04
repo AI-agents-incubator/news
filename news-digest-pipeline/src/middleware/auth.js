@@ -170,6 +170,12 @@ export function authRequired() {
 }
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+const PUBLIC_SIGNED_CALLBACKS = new Set([
+  '/oauth/threads/uninstall',
+  '/oauth/threads/delete',
+  '/api/oauth/threads/uninstall',
+  '/api/oauth/threads/delete',
+]);
 
 /**
  * Public reads, authenticated writes. Safe methods (GET/HEAD/OPTIONS) always
@@ -179,7 +185,23 @@ const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 export function writeAuth(req, res, next) {
   if (req.path.startsWith('/telegram/') || req.path.startsWith('/api/telegram/')) return next();
   if (SAFE_METHODS.has(req.method.toUpperCase())) return next();
+  if (req.method.toUpperCase() === 'POST' && PUBLIC_SIGNED_CALLBACKS.has(req.path)) return next();
   if (authDisabled()) return next();
   if (hasValidCreds(req)) return next();
   return res.status(401).json({ error: 'Unauthorized — требуется авторизация для изменений' });
+}
+
+/**
+ * Auth required for every method, including reads.
+ *
+ * The public dashboard deliberately exposes selected core read models through
+ * `writeAuth`. Operator-only modules such as Facebook moderation handle
+ * private prompts and enforcement state, so mounting this middleware there
+ * keeps their GET endpoints private without changing the public
+ * articles/digests contract.
+ */
+export function operatorAuth(req, res, next) {
+  if (authDisabled()) return next();
+  if (hasValidCreds(req)) return next();
+  return res.status(401).json({ error: 'Unauthorized — требуется авторизация' });
 }

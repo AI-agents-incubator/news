@@ -1,0 +1,17 @@
+node_modules
+data
+output
+logs
+.git
+.env
+.env.*
+# ...but the committed TEMPLATE must reach the image — Dockerfile:17 COPYs it.
+# Without this exception `.env.*` swallows it and EVERY build of the app image
+# fails with "/.env.example: not found" (broke 2026-07-19, caught on deploy).
+!.env.example
+*.log
+.DS_Store
+production/audio
+production/video
+production/image
+instagram/node_modules

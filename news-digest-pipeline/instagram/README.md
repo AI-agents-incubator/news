@@ -1,172 +1,110 @@
-# Instagram Pipeline
+# Instagram cover pipeline
 
-## Сценарий
+## Scope and current boundary
 
-Когда дайджест готов и опубликован в Telegram + Facebook, нужно также опубликовать его в Instagram. Instagram — визуальная платформа, поэтому для каждого дайджеста создаётся уникальное изображение с кликбейтным заголовком.
+This document describes the model-driven cover-preparation contract. It does
+**not** authorize a post, deployment, or credential change.
 
-## Полный сценарий публикации
+## Automatic digest white card
 
-### Вход
-- Готовый дайджест (текст из БД, 2000-10000 символов)
-- Набор шаблонов-референсов (2-10 изображений, задают стиль)
+The digest pipeline now separately prepares a reviewable white 1080×1350 JPEG
+after it saves a digest. This is not the graphical cover-lab flow described
+below: it takes the first seven assembled digest entries, asks the canonical
+`top5-hook.v1` prompt to choose five factual hooks plus a continuation promise,
+and renders that model-approved text with a fixed readable layout. The asset
+and append-only usage/cost receipt live in `digest_stage_artifacts`; the JPEG is
+served from `/digest-card-images/<artifact-id>.jpg` for a later publisher.
 
-### Шаг 1: Генерация заголовка и промпта
-**Кто:** Claude API (тот же, что генерирует дайджест)
+This automatic preparation neither creates an Instagram media container nor
+posts anything. A delivery integration must consume the stored successful JPEG
+and must not regenerate copy or replace it with a placeholder.
 
-На основе текста дайджеста Claude генерирует:
-- **Кликбейтный заголовок** (5-8 слов, русский) — для наложения на изображение
-- **Промпт для фона** (1 предложение, английский) — для генерации изображения
-- **Сокращённый caption** (до 2000 символов) — для описания поста
+`src/pro/services/autoposter.js` publishes an available source-post image
+unchanged. When the source post has no image, it creates one custom,
+source-grounded background through the production OpenAI/FAL preparation path,
+normalizes it to a JPEG, persists a dedicated receipt, and only then uses the
+public `/post-images/` URL for the existing Instagram delivery flow. The
+generated asset is not a source asset and is reused on a deliberate retry; a
+missing stored asset fails closed rather than regenerating a different visual.
+The cover lab itself still never invokes the autoposter or Instagram API.
 
-Пример:
-```
-Заголовок: "ИИ уволил 80% отдела. Босс не жалеет."
-Промпт: "Dark corporate office with empty desks and glowing screens, cinematic moody lighting"
-Caption: "#новости 1. IgniteTech уволил 80% сотрудников... [первые 2000 символов]"
-```
+`production/image/src/generate.js` is a legacy standalone script. Its direct
+FAL use and local Sharp text overlay do not satisfy the v2 provenance or
+model-driven composition contract below; it is not the production integration
+point for r02. Do not deploy or use it as evidence that a v2 cover was
+prepared.
 
-### Шаг 2: Выбор шаблона-референса
-**Кто:** Скрипт (рандомный выбор)
+## v2 preparation flow
 
-Из папки `instagram/templates/` выбирается случайный шаблон. Шаблоны задают:
-- Цветовую палитру
-- Стиль (минимализм, неон, editorial и т.д.)
-- Композицию (где будет текст, где фон)
-
-### Шаг 3: Генерация фонового изображения
-**Кто:** fal.ai API → Recraft V3 (или Seedream 5 Lite)
-
-Запрос: шаблон как style reference + промпт из Шага 1
-Результат: уникальное изображение 1080×1350 (4:5) в стиле шаблона
-Время: ~10-15 секунд
-Стоимость: ~$0.04
-
-**Важно:** изображение БЕЗ текста — только фон/атмосфера.
-
-### Шаг 4: Наложение текста
-**Кто:** Локально, Sharp (node.js) или node-canvas
-
-На сгенерированный фон программно накладывается:
-- Кликбейтный заголовок (крупный шрифт, кириллица)
-- Полупрозрачная подложка для контраста
-- Логотип / бренд-элемент (опционально)
-
-Текст накладывается **программно** — 100% контроль орфографии, шрифта, позиции.
-
-Результат: финальное изображение 1080×1350 PNG
-
-### Шаг 5: Подготовка caption
-**Кто:** Скрипт
-
-- Первые ~2000 символов дайджеста → caption
-- Хэштеги в конце (#новости #AI #ИИ и т.д.)
-- Если дайджест длиннее 2000 символов → остаток сохраняется для комментариев
-
-### Шаг 6: Публикация в Instagram
-**Кто:** Instagram Graph API или Patchright
-
-**Вариант A — Instagram Graph API** (если аккаунт Business/Creator):
-1. Загрузить изображение на публичный URL (или через контейнер)
-2. POST создание media container
-3. POST публикация
-
-**Вариант B — Patchright** (если личный аккаунт):
-- Тот же подход, что с Facebook Profile
-- Отдельный Chromium, persistent session
-
-### Шаг 7: Публикация остатка в комментариях
-**Кто:** Instagram Graph API или Patchright
-
-Если текст дайджеста > 2000 символов:
-- Разбить остаток на части по ~2000 символов
-- Опубликовать как комментарии к посту
-- Задержка 30-60 секунд между комментариями
-
-## Архитектурная схема
+The v2 flow is a sequence of recorded model calls, not a template/Sharp
+workflow. All semantic text and visual concepts are produced by the model whose
+artifact records them. Application code performs only schema validation,
+hashing, deterministic image normalization, and safe storage.
 
 ```mermaid
 flowchart TD
-    A[📰 Готовый дайджест] --> B[🤖 Claude API]
-    
-    B --> B1[Кликбейтный заголовок<br/>5-8 слов, русский]
-    B --> B2[Промпт для фона<br/>1 предложение, английский]
-    B --> B3[Caption ≤ 2000 символов]
-    
-    T[🎨 Шаблоны-референсы<br/>instagram/templates/] --> C
-    B2 --> C[🖼️ fal.ai API<br/>Recraft V3 / Seedream]
-    
-    C --> D[Фоновое изображение<br/>1080×1350, без текста]
-    
-    B1 --> E[✏️ Sharp / Canvas<br/>Наложение текста]
-    D --> E
-    
-    E --> F[📸 Финальное изображение<br/>1080×1350 с заголовком]
-    
-    F --> G{Публикация}
-    B3 --> G
-    
-    G --> H[📱 Instagram API<br/>или Patchright]
-    
-    H --> I[✅ Пост опубликован]
-    
-    B3 --> J{Текст > 2000?}
-    J -->|Да| K[💬 Комментарии<br/>остаток текста]
-    J -->|Нет| I
-    K --> I
-
-    style A fill:#e3f2fd
-    style F fill:#c8e6c9
-    style I fill:#a5d6a7
-    style C fill:#fff3e0
-    style E fill:#fce4ec
+    A["Untrusted source material"] --> B["Text model: editorial-card.v2"]
+    B --> C["Three model-generated logline candidates"]
+    C --> D["Model-selected impersonal logline"]
+    D --> E["Text model: visual-direction prompt"]
+    E --> F["Application-callable graphic adapter: background"]
+    F --> G["Application-callable graphic adapter: cover composition"]
+    G --> H["Immutable run artifacts and usage.ndjson"]
+    H -. "separate review and explicit authorization required" .-> I["Any publication path"]
 ```
 
-## Структура папки
+1. **Editorial.** The versioned prompt returns a source-grounded hook, facts,
+   three candidate loglines, and one logline selected by the text model. The
+   logline is direct impersonal explanatory copy; it does not describe an
+   author, a post, or a narrator. A human may review returned candidates but
+   must not replace one with handwritten copy in the pipeline.
+2. **Visual direction.** A separate text-model call turns only structured,
+   model-produced editorial data into a visual brief.
+3. **Background.** The application invokes a configured graphic provider via a
+   supported adapter. The adapter, rather than a Codex tool, submits the exact
+   versioned prompt and persists provider/model/request/artifact provenance.
+4. **Composition.** A second graphic-model call creates the final cover from
+   the recorded composition prompt. Sharp or another local tool may verify or
+   normalize image bytes only; it does not draw a semantic text overlay or make
+   a visual selection.
 
-```
-instagram/
-├── README.md              # Этот файл
-├── templates/             # Шаблоны-референсы (PNG)
-│   ├── template-01.png
-│   └── template-02.png
-├── output/                # Сгенерированные изображения
-├── src/
-│   ├── generate-image.js  # Шаг 2-4: шаблон → fal.ai → overlay текст
-│   ├── prepare-caption.js # Шаг 5: текст → caption + остаток
-│   └── publish.js         # Шаг 6-7: публикация + комментарии
-└── fonts/                 # Шрифты для наложения текста
-    └── ...
-```
+The application adapter supports `fal-ai/flux/dev` for a background and the
+current lab composition route, `fal-ai/recraft/v3/image-to-image`, which
+receives the background URL. The Flux r02 run and the partial Recraft r03 trial
+both failed the exact-readable-Russian-typography quality gate. They prove
+model-call and provenance behaviour, not a publish-ready composition route;
+neither result may be repaired with a local overlay. A provider response may
+omit token or cost data. The run then records the field as
+`not_reported_by_provider`; it never invents a price, model usage, or
+zero-token value.
 
-## Этапы реализации
+## Versioning, usage, and review evidence
 
-| Этап | Что делаем | Статус |
-|------|-----------|--------|
-| 1 | Создать 2 шаблона-референса | ⬜ |
-| 2 | Скрипт генерации фона через fal.ai | ⬜ |
-| 3 | Скрипт наложения текста (Sharp) | ⬜ |
-| 4 | Тест: промпт → изображение с текстом | ⬜ |
-| 5 | Подготовка caption (разбивка, хэштеги) | ⬜ |
-| 6 | Публикация в Instagram (API или Patchright) | ⬜ |
-| 7 | Комментарии с остатком текста | ⬜ |
-| 8 | Интеграция в основной пайплайн | ⬜ |
+An immutable run uses versioned prompt files (`*.v1.md`, `*.v2.md`, …) and
+records prompt-file and rendered-prompt hashes. A v2 editorial result contains
+both the raw model-generated candidates and the model-selected logline, so an
+owner can inspect what the API actually returned.
 
-## Конфигурация
+Every text or graphic attempt has a matching append-only `usage.ndjson` entry:
+run/sample/step/attempt, provider/model, reasoning setting, prompt hash,
+input/output/total usage or explicit unknowns, status, time, and any available
+provider request ID. Result artifacts additionally preserve output and image
+hashes. Failed and rejected attempts are ledgered too. Secrets never enter the
+run or ledger.
 
-```env
-# fal.ai
-FAL_KEY=...
+`fb10-r01-20260720` remains a historical graphical experiment. It used a
+non-application Codex image tool whose exact model and token usage were not
+exposed. A later v2/r02 run is required for model-driven, application-callable
+evidence; r01 must not be modified or relabelled as such.
 
-# Instagram (если через API)
-INSTAGRAM_ACCOUNT_ID=...
-INSTAGRAM_ACCESS_TOKEN=...
-```
+## Publication remains separate
 
-## Стоимость
+No cover-lab command publishes to Instagram, creates a media container, sends
+browser actions, uploads to a public URL, or posts overflow comments. The lab
+remains review-only. The separately tested Autoposter runtime path uses the
+normal explicit distribution action and its existing one-shot media-publish and
+continuation-reconciliation protections; this documentation change does not
+authorize deployment or an external post.
 
-| Компонент | Цена за пост | 30 постов/мес |
-|-----------|-------------|---------------|
-| Claude API (заголовок + промпт) | ~$0.01 | $0.30 |
-| fal.ai (генерация фона) | ~$0.04 | $1.20 |
-| Sharp (наложение текста) | $0 | $0 |
-| **Итого** | **~$0.05** | **~$1.50** |
+See [cover-lab](cover-lab/README.md) for run, validation, provenance, and
+safety details.

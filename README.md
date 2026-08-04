@@ -1,8 +1,8 @@
 **Оговорка!** Это не коммерческий проект, т.е. я не поддерживаю его в особо актуальном состоянии, я его просто использую сам. Иногда чего-то допиливаю, и даже не забываю комитить сюда. Поэтому просто скачивайте, поручайте ИИ разобраться и переделывайте под себя, как хотите. ИИ вам ответит на любой вопрос.
 
-# News Digest Pipeline v2.0.4
+# News Digest Pipeline
 
-[![Version](https://img.shields.io/badge/version-2.0.4-blue)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-2.4.31-blue)](CHANGELOG.md)
 [![Node.js](https://img.shields.io/badge/Node.js-20+-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![OpenAI](https://img.shields.io/badge/OpenAI-GPT--5.6_Terra-412991?logo=openai&logoColor=white)](https://openai.com/)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
@@ -21,7 +21,9 @@
 
 Перед вами **бесплатная (open-source, MIT) версия** проекта. Это полностью рабочий, самодостаточный пайплайн: собрать новости → сгенерировать авторские дайджесты → опубликовать в Telegram и на Facebook Page. Ничего не урезано в основном цикле — берите, разворачивайте, пользуйтесь.
 
-**Да, есть и платная (Pro) версия.** Она добавляет каналы распространения (Instagram, видео-Reels), работу с чужими FB-постами как источником и AI-модерацию комментариев. Полное сравнение — в таблице ниже. Pro пока не публичный продукт: если интересно — пишите автору или приходите на курс.
+**Да, есть и платная (Pro) версия.** Она добавляет каналы распространения,
+работу с чужими FB-постами как источником и AI-модерацию комментариев Facebook
+Page. Полное сравнение — в таблице ниже. Pro пока не публичный продукт.
 
 ### Бесплатная vs платная
 
@@ -35,8 +37,8 @@
 | Копирование текста в буфер (ручной постинг куда угодно) | ✅ | ✅ |
 | Безопасность (fail-closed auth, rate limiting, security-заголовки) | ✅ | ✅ |
 | Чужие **FB-посты как источник** дайджеста (browserless-чтение) | — | ✅ |
-| Автопостинг **картинок в Instagram** (fal.ai / Recraft V3) | — | ✅ |
-| **AI-модерация комментариев** FB Page (судья, shadow/live, авто-бан) | — | ✅ |
+| Дайджест-карусель Instagram: 10 immutable white-card и threaded fail-closed delivery | — | ✅ |
+| **AI-модерация комментариев Facebook Page** (shadow/live, журнал решений) | — | ✅ |
 | **Видео** Reels / Shorts, **аудио**-озвучка (TTS) | — | 🚧 |
 | Новые каналы: TikTok / YouTube / Email / единый автопостер | — | 🚧 |
 
@@ -55,8 +57,8 @@
 1. У вас установлено приложение **[Perplexity](https://perplexity.ai)** на телефоне — в нём есть удобный дайджест новостей (Discover)
 2. Вы открываете Perplexity, переходите в Discover и прокручиваете новости
 3. Понравилась новость — нажимаете **«Поделиться»** → **Telegram** → выбираете вашего бота
-4. Когда накопилось **13+ статей** — модель (OpenAI, GPT-5.6 Terra) автоматически генерирует дайджест, и на дашборде появляется готовый текст с кнопками публикации
-5. Заходите в **Dashboard**, находите нужный дайджест и нажимаете куда хотите опубликовать: **📨 TG** (Telegram), **📘 FB** (Facebook Page) или оба
+4. Когда накопилось **13+ статей** — модель (OpenAI, GPT-5.6 Terra) автоматически генерирует дайджест; в Pro отдельно готовятся 10 immutable Instagram white-card, с отдельным учётом токенов и цены
+5. Заходите в **Dashboard**, находите нужный дайджест и нажимаете куда хотите опубликовать: **📨 TG** (Telegram), **📘 FB** (Facebook Page) или проходите отдельный review/publish flow **IG 10**
 
 Без ручного копирования, без вёрстки, без рутины.
 
@@ -69,7 +71,7 @@
 
 | Шаг | Что сделать | Инструкция |
 |-----|------------|-----------|
-| 1 | Настроить **VPS-сервер** (Ubuntu, Docker, Traefik) | [vps-setup.md](news-digest-pipeline/docs/vps-setup.md) |
+| 1 | Настроить **VPS-сервер** (Ubuntu, Docker, Traefik) | [vps-setup-public.md](news-digest-pipeline/docs/vps-setup-public.md) |
 | 2 | Создать **Telegram-бота** через @BotFather и настроить webhook | [telegram-setup.md](news-digest-pipeline/docs/telegram-setup.md) |
 | 3 | Получить **OpenAI API ключ** на [platform.openai.com](https://platform.openai.com/) | — |
 | 4 | *(опционально)* Создать **Facebook App** и получить Page Access Token | [facebook-page-setup.md](news-digest-pipeline/docs/facebook-page-setup.md) |
@@ -78,6 +80,16 @@
 ---
 
 ## Архитектура
+
+News и Telegram-AI — два самостоятельных продукта:
+
+- **News / News Pro** формирует, проверяет и публикует дайджесты; Telegram здесь
+  остаётся редакционным входом URL и каналом публикации.
+- **[AIchatTG](https://github.com/alexeykrol/AIchatTG)** владеет Telegram
+  Moderator, Assistant и Gatekeeper, их webhook, SQLite, моделями и интерфейсом.
+
+Проекты могут жить на одном VPS, но не используют общую базу данных, runtime,
+Compose или секреты.
 
 ```mermaid
 graph TB
@@ -257,7 +269,11 @@ flowchart LR
 Бесплатной версии достаточно, чтобы вести один канал (Telegram + FB Page) в полностью автоматическом режиме. Pro-версия расширяет проект в сторону **мультиканального распространения и работы с чужим контентом**:
 
 - **FB-посты как источник.** Кроме новостей из Perplexity — добавляйте в дайджест чужие публичные посты Facebook по прямой ссылке (browserless-чтение, без логина и риска для аккаунта).
-- **Instagram (картинки).** Дайджест → заголовки → генерация фонового изображения (fal.ai / Recraft V3) → плашка с текстом (Sharp) → пост 1080×1350 в Instagram.
+- **Instagram (карточка дайджеста).** После сборки дайджеста модель выбирает 5
+  factual hooks из первых 7 строк и пишет обещание продолжения; pipeline
+  сохраняет белый JPEG 1080×1350 и immutable usage/cost receipt. Публикация
+  этого готового asset — отдельный следующий шаг, без placeholder и без
+  повторной генерации при клике.
 - **AI-модерация комментариев** под постами Facebook Page. Дешёвая модель-судья классифицирует каждый комментарий (бан / подозрительный / чистый). Режимы **Shadow** (обкатка на реальной ленте без действий) и **Live** (авто-бан/скрытие), настраиваемый порог авто-бана, отдельная модель-улучшатель промптов, журнал решений и история коррекций.
 - **Видео и аудио** *(в разработке)*. Reels / Shorts (сториборд → Kling / Veo → FFmpeg, 1080×1920) и озвучка дайджестов (TTS).
 - **Новые каналы** *(в разработке)* — TikTok, YouTube, Email-рассылка, единый автопостер.
@@ -270,7 +286,7 @@ Pro пока не оформлен как публичный продукт с �
 
 **Модель доступа:**
 
-- **Чтение (`GET`) — публичное.** Анонимным вызовам публичные `GET` отдают только безопасные поля (внутренние — стоимость, токены, id внешних постов, логи генерации, telegram-идентификаторы — скрыты). Аутентифицированный владелец (сессия дашборда **или** `Authorization: Bearer <API_SECRET_KEY>`) видит полные данные.
+- **Публичное чтение (`GET`) — только для базового дайджестного API.** Анонимным вызовам доступны только безопасные поля; внутренние данные скрыты. Pro-операционные поверхности source-posts и Facebook-модерации требуют авторизацию даже на чтение.
 - **Записи (`POST` / `PATCH` / `DELETE`)** требуют `Authorization: Bearer <API_SECRET_KEY>` или сессию дашборда.
 
 | Метод | Endpoint | Описание |
@@ -284,6 +300,8 @@ Pro пока не оформлен как публичный продукт с �
 | `POST` | `/api/digests/generate` | Ручная генерация |
 | `GET` | `/api/digests` | Список дайджестов (публичный, безопасные поля) |
 | `GET` | `/api/digests/:id/text` | Чистый текст |
+| `GET` | `/api/digests/:id/instagram-card` | Статус и подготовленная Instagram-карточка |
+| `POST` | `/api/digests/:id/instagram-card/retry` | Явно повторить подготовку карточки, без публикации |
 | `POST` | `/api/digests/:id/publish` | Публикация `{platforms: ["telegram","facebook"]}` |
 | `DELETE` | `/api/digests/:id` | Удалить дайджест |
 
@@ -341,7 +359,7 @@ Pro пока не оформлен как публичный продукт с �
 |------|------|
 | Telegram (бот + канал) | [telegram-setup.md](news-digest-pipeline/docs/telegram-setup.md) |
 | Facebook Page (Graph API) | [facebook-page-setup.md](news-digest-pipeline/docs/facebook-page-setup.md) |
-| VPS + Docker + Traefik | [vps-setup.md](news-digest-pipeline/docs/vps-setup.md) |
+| VPS + Docker + Traefik | [vps-setup-public.md](news-digest-pipeline/docs/vps-setup-public.md) |
 | iOS Shortcut | [ios-shortcut-setup.md](news-digest-pipeline/docs/ios-shortcut-setup.md) |
 
 ---

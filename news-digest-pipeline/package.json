@@ -1,13 +1,17 @@
 {
   "name": "news-digest-pipeline",
-  "version": "1.0.0",
+  "version": "2.4.31",
   "description": "Automated news digest pipeline: collect articles, generate commentary via Claude API, assemble digests",
   "main": "src/index.js",
   "type": "module",
+  "engines": {
+    "node": ">=20.20.0 <21"
+  },
   "scripts": {
     "start": "node src/index.js",
     "dev": "NODE_ENV=development node --watch src/index.js",
-    "test": "vitest run",
+    "test": "vitest run --exclude 'production/substack-publisher/test/**' && node scripts/test-substack-publisher.mjs",
+    "test:publisher": "node scripts/test-substack-publisher.mjs",
     "test:watch": "vitest"
   },
   "dependencies": {

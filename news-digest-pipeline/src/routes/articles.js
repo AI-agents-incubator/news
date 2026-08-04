@@ -3,11 +3,13 @@ import {
   insertArticle,
   getArticleCount,
   deleteArticle,
+  recordFetchFailure,
   getDb,
 } from '../db/index.js';
 import { fetchArticleContent } from '../services/article-fetcher.js';
 import { showFull, publicArticle, clampLimit } from './public-dto.js';
 import { validateArticleUrl } from '../services/url-validator.js';
+import config from '../config.js';
 
 const router = Router();
 
@@ -178,6 +180,29 @@ router.patch('/:id', (req, res) => {
       return res.status(404).json({ error: 'Article not found' });
     }
 
+    // Second line of defence against the Perplexity SPA serving another
+    // article's text under a dead /page/ slug: identical content on two
+    // different articles is never legitimate. Across the whole corpus (1454
+    // articles with content) matching first 300 chars produced exactly 3
+    // groups, all of them contamination — zero false positives. Self-matches
+    // (re-PATCHing the same article) are excluded by id <> ?, since re-sending
+    // the same text to its own article is a normal retry, not a substitution.
+    if (content) {
+      const dup = db.prepare(
+        `SELECT id FROM articles
+          WHERE id <> ? AND content IS NOT NULL
+            AND substr(content, 1, 300) = substr(?, 1, 300)
+          LIMIT 1`
+      ).get(id, content);
+      if (dup) {
+        // Route through the same failure path as /fetch-failed so the article
+        // grows its attempt counter and eventually turns 'unfetchable' — the
+        // problem stays visible in the DB/dashboard, not just in fetcher logs.
+        recordFetchFailure(id, config.maxFetchAttempts, `duplicate_content: matches ${dup.id}`);
+        return res.status(409).json({ error: 'duplicate_content', duplicateOf: dup.id });
+      }
+    }
+
     const updates = [];
     const values = [];
 
@@ -195,9 +220,11 @@ router.patch('/:id', (req, res) => {
     }
 
     updates.push("updated_at = datetime('now')");
-    // Reset status and clear error if we got content
+    // Reset status and clear error if we got content. Also zero the failure
+    // counter so a previously flaky article gets a clean slate once it succeeds.
     if (content) {
       updates.push('fetch_error = NULL');
+      updates.push('fetch_attempts = 0');
       updates.push("status = 'new'");
     }
 
@@ -212,10 +239,41 @@ router.patch('/:id', (req, res) => {
   }
 });
 
+// POST /api/articles/:id/fetch-failed — the local fetcher reports a failed
+// extraction attempt for this article. After config.maxFetchAttempts failures
+// the article flips to the terminal 'unfetchable' status so the fetcher stops
+// re-opening Chrome for it every cycle. Bearer-authenticated via the /api
+// writeAuth mount (same credential the fetcher uses for PATCH).
+router.post('/:id/fetch-failed', (req, res) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body || {};
+    const result = recordFetchFailure(
+      id,
+      config.maxFetchAttempts,
+      reason ? String(reason).slice(0, 300) : null
+    );
+    if (!result) {
+      return res.status(404).json({ error: 'Article not found' });
+    }
+    res.json(result);
+  } catch (err) {
+    console.error('[articles] POST /:id/fetch-failed error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // DELETE /api/articles/:id
 router.delete('/:id', (req, res) => {
   try {
     const result = deleteArticle(req.params.id);
+    if (result.blockedByBatch) {
+      return res.status(409).json({
+        error: 'Article belongs to an immutable digest review batch',
+        batchId: result.blockedByBatch.id,
+        batchStatus: result.blockedByBatch.status,
+      });
+    }
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Article not found' });
     }

@@ -224,6 +224,12 @@
       box-shadow: 0 0 8px rgba(34,197,94,0.06);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%2322c55e' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
     }
+    .status-select.is-ready-for-review {
+      background-color: rgba(59,130,246,0.08);
+      color: #2563eb;
+      border-color: rgba(59,130,246,0.28);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%233b82f6' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+    }
 
     /* Buttons base */
     .btn {
@@ -332,6 +338,16 @@
       border-color: rgba(24,119,242,0.5);
       box-shadow: 0 0 10px rgba(24,119,242,0.15);
     }
+    /* Instagram carousel review is an operator-only, manual flow. */
+    .plat-btn[onclick*="reviewInstagramCarousel"] {
+      border-color: rgba(225,48,108,0.34);
+      color: #c13584;
+    }
+    .plat-btn[onclick*="reviewInstagramCarousel"]:hover {
+      background: rgba(225,48,108,0.09);
+      border-color: rgba(225,48,108,0.58);
+      box-shadow: 0 0 10px rgba(225,48,108,0.15);
+    }
     .plat-btn.sent {
       background: rgba(34,197,94,0.08);
       color: #16a34a;
@@ -439,6 +455,229 @@
     .modal-body::-webkit-scrollbar-track { background: transparent; }
     .modal-body::-webkit-scrollbar-thumb { background: #ddd8d0; border-radius: 3px; }
     .modal-body::-webkit-scrollbar-thumb:hover { background: #b0aaa4; }
+    .carousel-status {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: #f0ede8;
+      color: #625d56;
+      font-size: 12px;
+      font-weight: 600;
+      margin: 0 6px 10px 0;
+    }
+    .carousel-status.is-ready, .carousel-status.is-published { background: rgba(34,197,94,0.12); color: #15803d; }
+    .carousel-status.is-partial, .carousel-status.is-awaiting_reconciliation, .carousel-status.is-blocked { background: rgba(245,158,11,0.13); color: #a16207; }
+    .carousel-status.is-preparing, .carousel-status.is-publishing { background: rgba(59,130,246,0.12); color: #1d4ed8; }
+    .carousel-assets {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      margin: 14px 0 18px;
+    }
+    .carousel-asset {
+      position: relative;
+      border: 1px solid #e8e4df;
+      border-radius: 9px;
+      overflow: hidden;
+      background: #f5f3ef;
+      aspect-ratio: 4 / 5;
+    }
+    .carousel-asset img { display: block; width: 100%; height: 100%; object-fit: cover; }
+    .carousel-asset span {
+      position: absolute; top: 6px; left: 6px;
+      background: rgba(45,42,38,0.78); color: #fff;
+      border-radius: 5px; padding: 1px 6px; font-size: 11px; font-weight: 600;
+    }
+    .carousel-copy { white-space: pre-wrap; margin: 8px 0 14px; }
+    .carousel-copy summary { cursor: pointer; color: #625d56; font-weight: 600; }
+    .carousel-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+    .carousel-action {
+      border: 1px solid #ddd8d0; border-radius: 8px; padding: 7px 11px;
+      background: #fff; color: #2d2a26; font: 600 13px 'Inter', sans-serif; cursor: pointer;
+    }
+    .carousel-action:hover { border-color: #7c3aed; color: #7c3aed; }
+    .carousel-action.publish { background: #c13584; border-color: #c13584; color: #fff; }
+    .carousel-action.publish:hover { background: #a5256f; color: #fff; }
+    .carousel-action:disabled { opacity: 0.55; cursor: not-allowed; }
+    .carousel-repair {
+      margin: 16px 0 0; padding: 13px 14px;
+      border: 1px solid rgba(180, 83, 9, 0.28); border-radius: 9px;
+      background: rgba(245, 158, 11, 0.07);
+    }
+    .carousel-repair.is-completed {
+      border-color: rgba(21, 128, 61, 0.25); background: rgba(34, 197, 94, 0.06);
+    }
+    .carousel-repair p { margin: 6px 0; }
+
+    /* Digest-local two-stage review workspace */
+    .digest-local-tabs {
+      display: inline-flex;
+      gap: 4px;
+      padding: 4px;
+      margin: -8px 0 20px;
+      border: 1px solid #ddd8d0;
+      border-radius: 10px;
+      background: #ece8e2;
+    }
+    .digest-local-tab {
+      border: none;
+      border-radius: 7px;
+      padding: 8px 16px;
+      background: transparent;
+      color: #625d56;
+      font: 600 14px 'Inter', sans-serif;
+      cursor: pointer;
+    }
+    .digest-local-tab.active {
+      background: #fff;
+      color: #7c3aed;
+      box-shadow: 0 1px 5px rgba(45,42,38,0.10);
+    }
+    .digest-panel { display: none; }
+    .digest-panel.active { display: block; }
+    .review-toolbar {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 14px;
+      flex-wrap: wrap;
+    }
+    .review-toolbar-group { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; }
+    .review-field { display: flex; flex-direction: column; gap: 5px; }
+    .review-field label, .review-settings-title {
+      color: #625d56;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .review-field input, .review-field select, .review-field textarea {
+      border: 1px solid #d8d2ca;
+      border-radius: 8px;
+      background: #fff;
+      color: #2d2a26;
+      padding: 8px 10px;
+      font: 14px 'Inter', sans-serif;
+      outline: none;
+    }
+    .review-field input:focus, .review-field select:focus, .review-field textarea:focus {
+      border-color: #7c3aed;
+      box-shadow: 0 0 0 2px rgba(124,58,237,0.12);
+    }
+    .review-field textarea { min-height: 120px; resize: vertical; line-height: 1.45; }
+    .review-run-select { min-width: 280px; max-width: 100%; }
+    .review-settings {
+      margin-bottom: 18px;
+      padding: 16px;
+      border: 1px solid #e1dcd5;
+      border-radius: 12px;
+      background: rgba(255,255,255,0.72);
+    }
+    .review-settings > summary {
+      cursor: pointer;
+      color: #2d2a26;
+      font-weight: 600;
+    }
+    .review-settings-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+    .review-phase {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px solid #e8e4df;
+    }
+    .review-phase-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin: 10px 0;
+    }
+    .review-status {
+      min-height: 22px;
+      margin: 8px 0 12px;
+      color: #625d56;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+    .review-status.error { color: #b91c1c; }
+    .review-status.success { color: #15803d; }
+    .review-run-meta {
+      margin: 0 0 12px;
+      padding: 10px 12px;
+      border-radius: 9px;
+      background: rgba(124,58,237,0.06);
+      color: #625d56;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    .review-title-link {
+      display: inline-block;
+      max-width: 520px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      color: #2d2a26;
+      font-weight: 500;
+      text-decoration: none;
+      vertical-align: middle;
+    }
+    .review-title-link:hover { color: #7c3aed; text-decoration: underline; }
+    .review-toggle {
+      min-width: 104px;
+      border: 1px solid rgba(34,197,94,0.30);
+      border-radius: 7px;
+      padding: 6px 10px;
+      background: rgba(34,197,94,0.09);
+      color: #15803d;
+      font: 600 12px 'Inter', sans-serif;
+      cursor: pointer;
+    }
+    .review-toggle.off {
+      border-color: rgba(239,68,68,0.25);
+      background: rgba(239,68,68,0.07);
+      color: #b91c1c;
+    }
+    .review-toggle:disabled { opacity: 0.55; cursor: not-allowed; }
+    .review-word-count.out-of-range {
+      color: #b45309;
+      font-weight: 700;
+      text-decoration: underline dotted;
+      text-underline-offset: 3px;
+    }
+    .review-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin: 14px 0 22px;
+    }
+    .review-primary {
+      border: none;
+      border-radius: 9px;
+      padding: 10px 16px;
+      background: linear-gradient(135deg, #7c3aed, #3b82f6);
+      color: #fff;
+      font: 600 14px 'Inter', sans-serif;
+      cursor: pointer;
+    }
+    .review-primary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .review-secondary {
+      border: 1px solid #d8d2ca;
+      border-radius: 9px;
+      padding: 9px 14px;
+      background: #fff;
+      color: #625d56;
+      font: 600 13px 'Inter', sans-serif;
+      cursor: pointer;
+    }
+    .review-secondary:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-rerun {
+      border: 1px solid rgba(124,58,237,0.28);
+      color: #7c3aed;
+      background: rgba(124,58,237,0.06);
+    }
+    body.readonly .review-mutation { display: none !important; }
 
     /* Responsive */
     @media (max-width: 768px) {
@@ -453,6 +692,10 @@
       .btn { padding: 5px 10px; font-size: 12px; }
       .btn-preview { margin-right: 3px; }
       .modal { width: 96%; max-height: 80vh; border-radius: 12px; }
+      .carousel-assets { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+      .review-settings-grid, .review-phase-grid { grid-template-columns: 1fr; }
+      .review-run-select { min-width: 0; width: 100%; }
+      .review-title-link { max-width: 65vw; }
     }
 
     @media (max-width: 480px) {
@@ -509,7 +752,7 @@
     <div class="header">
       <h1>News Digest Dashboard</h1>
       <div class="header-right">
-        <span class="version-badge">v2.2.0 &middot; 17.07.2026</span>
+        <span class="version-badge">v2.4.31 &middot; 30.07.2026</span>
       </div>
     </div>
     <p class="subtitle" id="subtitle">Загрузка...</p>
@@ -517,8 +760,12 @@
       <a class="tab active" href="index.html">Дайджесты</a>
       <a class="tab" href="syndication.html">Публикация</a>
       <a class="tab" href="settings.html">Настройки</a>
-      <a class="tab" href="moderation.html">Модерация</a>
+      <a class="tab" href="moderation.html">Модерация FB</a>
     </nav>
+    <div class="digest-local-tabs" role="tablist" aria-label="Разделы дайджеста">
+      <button class="digest-local-tab active" id="digest-tab-processing" type="button" role="tab" aria-selected="true" aria-controls="digest-panel-processing">Обработка</button>
+      <button class="digest-local-tab" id="digest-tab-list" type="button" role="tab" aria-selected="false" aria-controls="digest-panel-list">Дайджесты</button>
+    </div>
     <div class="course-banner">
       Проект реализован в рамках учебного курса: <strong>Создание ИИ Агентов и приложений для бизнеса, роста, дохода и кайфа.</strong>
       Хотите научиться делать такое же? Попробуйте этот курс. 14 дней пробный период:
@@ -530,21 +777,89 @@
       <a class="btn-login" href="#" id="btn-login">Войти</a>
       <a class="btn-logout" href="#" id="btn-logout">Выйти</a>
     </div>
-    <table>
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Создан</th>
-          <th>Опубликован</th>
-          <th>Статей</th>
-          <th>Стоимость</th>
-          <th>Статус</th>
-          <th>Действия</th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
-    <p class="refresh-note">Автообновление каждые 30 сек</p>
+    <section class="digest-panel active" id="digest-panel-processing" role="tabpanel" aria-labelledby="digest-tab-processing">
+      <div class="review-toolbar">
+        <div class="review-toolbar-group">
+          <div class="review-field">
+            <label for="review-run-select">Проход для проверки</label>
+            <select class="review-run-select" id="review-run-select">
+              <option value="">Загрузка...</option>
+            </select>
+          </div>
+          <button class="review-secondary" id="review-refresh" type="button">Обновить</button>
+        </div>
+        <button class="review-primary review-mutation" id="review-start" type="button">Обработать новые 30</button>
+      </div>
+
+      <details class="review-settings">
+        <summary>Настройки следующего прохода</summary>
+        <div class="review-settings-grid">
+          <div class="review-field">
+            <label for="review-source-max-chars">Максимум знаков исходной новости</label>
+            <input id="review-source-max-chars" type="number" min="100" max="50000" step="100" value="6000">
+          </div>
+          <div class="review-field">
+            <label for="review-comment-min">Комментарий: минимум слов</label>
+            <input id="review-comment-min" type="number" min="10" max="2000" value="80">
+          </div>
+          <div class="review-field">
+            <label for="review-comment-max">Комментарий: максимум слов</label>
+            <input id="review-comment-max" type="number" min="10" max="2000" value="150">
+          </div>
+        </div>
+
+        <div class="review-phase">
+          <div class="review-settings-title">Первый вызов: обработка каждой новости</div>
+          <div class="review-phase-grid">
+            <div class="review-field"><label for="review-phase1-vendor">Провайдер</label><select id="review-phase1-vendor"></select></div>
+            <div class="review-field"><label for="review-phase1-model">Модель</label><select id="review-phase1-model"></select></div>
+            <div class="review-field"><label for="review-phase1-reasoning">Reasoning</label><select id="review-phase1-reasoning"></select></div>
+          </div>
+          <div class="review-field"><label for="review-phase1-prompt">Промпт первого вызова</label><textarea id="review-phase1-prompt"></textarea></div>
+        </div>
+
+        <div class="review-phase">
+          <div class="review-settings-title">Второй вызов: сборка выбранных новостей</div>
+          <div class="review-phase-grid">
+            <div class="review-field"><label for="review-phase2-vendor">Провайдер</label><select id="review-phase2-vendor"></select></div>
+            <div class="review-field"><label for="review-phase2-model">Модель</label><select id="review-phase2-model"></select></div>
+            <div class="review-field"><label for="review-phase2-reasoning">Reasoning</label><select id="review-phase2-reasoning"></select></div>
+          </div>
+          <div class="review-field"><label for="review-phase2-prompt">Промпт второго вызова</label><textarea id="review-phase2-prompt"></textarea></div>
+        </div>
+      </details>
+
+      <div class="review-status" id="review-status">Загрузка результатов первого прохода...</div>
+      <div class="review-run-meta" id="review-run-meta" hidden></div>
+      <table>
+        <thead><tr><th>#</th><th>Исходная новость</th><th>Результат</th><th>Слов</th><th>Участие</th></tr></thead>
+        <tbody id="review-tbody"><tr><td colspan="5" class="empty">Загрузка...</td></tr></tbody>
+      </table>
+      <div class="review-actions">
+        <button class="review-secondary review-mutation" id="review-recover-phase1" type="button" hidden>Восстановить первый проход</button>
+        <button class="review-primary review-mutation" id="review-assemble" type="button" disabled>Собрать дайджест из 0</button>
+        <button class="review-primary review-mutation" id="review-retry-phase2" type="button" hidden>Повторить второй вызов</button>
+        <button class="review-secondary review-mutation" id="review-recover-phase2" type="button" hidden>Восстановить второй вызов</button>
+      </div>
+    </section>
+
+    <section class="digest-panel" id="digest-panel-list" role="tabpanel" aria-labelledby="digest-tab-list" hidden>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Создан</th>
+            <th>Опубликован</th>
+            <th>Статей</th>
+            <th>Стоимость</th>
+            <th>Статус</th>
+            <th>Действия</th>
+          </tr>
+        </thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <p class="refresh-note">Автообновление каждые 30 сек</p>
+    </section>
   </div>
 
   <div class="modal-overlay" id="modal" onclick="if(event.target===this)closeModal()">
@@ -570,6 +885,463 @@
       return { date: `${dd}.${mm}.${d.getFullYear()}`, time: `${hh}:${mi}` };
     }
 
+    let reviewOptions = null;
+    let reviewRuns = [];
+    let selectedReviewRun = null;
+    let reviewSettingsInitialized = false;
+    let reviewMutationPending = false;
+
+    function switchDigestPanel(name) {
+      const processing = name === 'processing';
+      const processingTab = document.getElementById('digest-tab-processing');
+      const listTab = document.getElementById('digest-tab-list');
+      const processingPanel = document.getElementById('digest-panel-processing');
+      const listPanel = document.getElementById('digest-panel-list');
+      processingTab.classList.toggle('active', processing);
+      listTab.classList.toggle('active', !processing);
+      processingTab.setAttribute('aria-selected', String(processing));
+      listTab.setAttribute('aria-selected', String(!processing));
+      processingPanel.classList.toggle('active', processing);
+      listPanel.classList.toggle('active', !processing);
+      processingPanel.hidden = !processing;
+      listPanel.hidden = processing;
+    }
+
+    function setReviewStatus(message, kind = '') {
+      const element = document.getElementById('review-status');
+      element.textContent = message;
+      element.className = `review-status${kind ? ` ${kind}` : ''}`;
+    }
+
+    function safeExternalUrl(value) {
+      try {
+        const url = new URL(String(value || ''));
+        return ['http:', 'https:'].includes(url.protocol) ? url.href : '#';
+      } catch {
+        return '#';
+      }
+    }
+
+    async function responseJson(response) {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || `HTTP ${response.status}`);
+      return data;
+    }
+
+    function fillReviewModels(phase, selectedModel = '') {
+      const vendor = document.getElementById(`review-${phase}-vendor`).value;
+      const modelSelect = document.getElementById(`review-${phase}-model`);
+      const models = reviewOptions?.modelCatalog?.[vendor] || [];
+      modelSelect.innerHTML = models.map((model) => (
+        `<option value="${escapeHtml(model.id)}">${escapeHtml(model.label || model.id)}</option>`
+      )).join('');
+      if (models.some((model) => model.id === selectedModel)) {
+        modelSelect.value = selectedModel;
+      }
+    }
+
+    function applyReviewOptions(options) {
+      reviewOptions = options || {};
+      if (reviewSettingsInitialized) return;
+      const defaults = reviewOptions.defaults || {};
+      const catalog = reviewOptions.modelCatalog || {};
+      const vendors = Object.keys(catalog);
+      for (const phase of ['phase1', 'phase2']) {
+        const vendorSelect = document.getElementById(`review-${phase}-vendor`);
+        vendorSelect.innerHTML = vendors.map((vendor) => (
+          `<option value="${escapeHtml(vendor)}">${escapeHtml(vendor)}</option>`
+        )).join('');
+        const defaultVendor = defaults[`${phase}Vendor`];
+        if (vendors.includes(defaultVendor)) vendorSelect.value = defaultVendor;
+        fillReviewModels(phase, defaults[`${phase}Model`] || '');
+
+        const reasoning = document.getElementById(`review-${phase}-reasoning`);
+        const configuredEfforts = Array.isArray(reviewOptions.reasoningEfforts)
+          ? reviewOptions.reasoningEfforts
+          : ['', 'minimal', 'low', 'medium', 'high'];
+        const efforts = [...new Set(['', 'minimal', ...configuredEfforts])];
+        reasoning.innerHTML = efforts.map((effort) => (
+          `<option value="${escapeHtml(effort)}">${escapeHtml(effort || 'по умолчанию')}</option>`
+        )).join('');
+        reasoning.value = defaults[`${phase}ReasoningEffort`] || '';
+        document.getElementById(`review-${phase}-prompt`).value = defaults[`${phase}Prompt`] || '';
+      }
+      document.getElementById('review-source-max-chars').value = defaults.sourceMaxChars ?? 6000;
+      document.getElementById('review-comment-min').value = defaults.commentaryMinWords ?? 80;
+      document.getElementById('review-comment-max').value = defaults.commentaryMaxWords ?? 150;
+      reviewSettingsInitialized = true;
+    }
+
+    function currentReviewSettings() {
+      const sourceMaxChars = Number(document.getElementById('review-source-max-chars').value);
+      const commentaryMinWords = Number(document.getElementById('review-comment-min').value);
+      const commentaryMaxWords = Number(document.getElementById('review-comment-max').value);
+      if (!Number.isSafeInteger(sourceMaxChars) || sourceMaxChars < 100 || sourceMaxChars > 50000) {
+        throw new Error('Максимум знаков должен быть целым числом от 100 до 50000.');
+      }
+      if (!Number.isSafeInteger(commentaryMinWords) || !Number.isSafeInteger(commentaryMaxWords)
+        || commentaryMinWords < 10 || commentaryMaxWords > 2000
+        || commentaryMaxWords < commentaryMinWords) {
+        throw new Error('Проверьте диапазон слов: от 10 до 2000, максимум не меньше минимума.');
+      }
+      const settings = { sourceMaxChars, commentaryMinWords, commentaryMaxWords };
+      for (const phase of ['phase1', 'phase2']) {
+        settings[`${phase}Vendor`] = document.getElementById(`review-${phase}-vendor`).value;
+        settings[`${phase}Model`] = document.getElementById(`review-${phase}-model`).value;
+        settings[`${phase}ReasoningEffort`] = document.getElementById(`review-${phase}-reasoning`).value;
+        settings[`${phase}Prompt`] = document.getElementById(`review-${phase}-prompt`).value.trim();
+        if (!settings[`${phase}Vendor`] || !settings[`${phase}Model`] || !settings[`${phase}Prompt`]) {
+          throw new Error(`Заполните провайдера, модель и промпт для ${phase === 'phase1' ? 'первого' : 'второго'} вызова.`);
+        }
+      }
+      return settings;
+    }
+
+    function reviewRunLabel(run) {
+      const created = fmtDatetime(run.created_at);
+      const date = created ? `${created.date} ${created.time}` : 'без даты';
+      const source = run.source_digest_id ? `повтор дайджеста ${run.source_digest_id}` : 'новые новости';
+      return `${date} · ${source} · ${run.status || 'unknown'} · ${run.item_count ?? run.items?.length ?? 0}`;
+    }
+
+    async function loadReviewWorkspace() {
+      if (READONLY) {
+        document.getElementById('review-run-select').innerHTML = '<option value="">Требуется вход</option>';
+        document.getElementById('review-tbody').innerHTML = '<tr><td colspan="5" class="empty">Результаты первого прохода доступны после входа оператора.</td></tr>';
+        setReviewStatus('В режиме просмотра prompts и промежуточные результаты скрыты. Войдите как оператор.');
+        return;
+      }
+      try {
+        const options = await responseJson(await fetch('/api/digests/review-runs/options'));
+        applyReviewOptions(options);
+        await loadReviewRuns();
+      } catch (err) {
+        setReviewStatus(`Не удалось загрузить обработку: ${err.message}`, 'error');
+      }
+    }
+
+    async function loadReviewRuns(preferredRunId = '') {
+      if (READONLY) return;
+      try {
+        const payload = await responseJson(await fetch('/api/digests/review-runs?limit=100'));
+        reviewRuns = Array.isArray(payload) ? payload : (payload.runs || []);
+        const select = document.getElementById('review-run-select');
+        const previous = preferredRunId || select.value;
+        if (reviewRuns.length === 0) {
+          select.innerHTML = '<option value="">Проходов пока нет</option>';
+          selectedReviewRun = null;
+          renderReviewRun(null);
+          return;
+        }
+        select.innerHTML = reviewRuns.map((run) => (
+          `<option value="${escapeHtml(run.id)}">${escapeHtml(reviewRunLabel(run))}</option>`
+        )).join('');
+        select.value = reviewRuns.some((run) => run.id === previous) ? previous : reviewRuns[0].id;
+        await loadReviewRun(select.value);
+      } catch (err) {
+        setReviewStatus(`Не удалось загрузить список проходов: ${err.message}`, 'error');
+      }
+    }
+
+    async function loadReviewRun(runId) {
+      if (!runId || READONLY) return;
+      try {
+        selectedReviewRun = await responseJson(await fetch(`/api/digests/review-runs/${encodeURIComponent(runId)}`));
+        renderReviewRun(selectedReviewRun);
+      } catch (err) {
+        selectedReviewRun = null;
+        renderReviewRun(null);
+        setReviewStatus(`Не удалось загрузить проход: ${err.message}`, 'error');
+      }
+    }
+
+    function reviewRunStatus(status) {
+      return ({
+        phase1_processing: 'Первый проход выполняется',
+        phase1_attention_required: 'Первый проход остановлен: результат одного из вызовов неоднозначен',
+        awaiting_review: 'Первый проход завершён — выберите новости',
+        phase2_retryable: 'Второй вызов не был принят провайдером; доступен явный повтор',
+        phase2_processing: 'Дайджест собирается',
+        phase2_output_ready: 'Ответ второго вызова сохранён; требуется локальная финализация',
+        phase2_inconclusive: 'Исход второго вызова неоднозначен — повтор заблокирован',
+        ready_for_review: 'Новый дайджест готов к проверке',
+        failed: 'Проход завершился с ошибкой',
+      })[status] || status || 'Неизвестный статус';
+    }
+
+    function renderReviewRun(run) {
+      const tbody = document.getElementById('review-tbody');
+      const meta = document.getElementById('review-run-meta');
+      const assemble = document.getElementById('review-assemble');
+      const recoverPhase1 = document.getElementById('review-recover-phase1');
+      const retryPhase2 = document.getElementById('review-retry-phase2');
+      const recoverPhase2 = document.getElementById('review-recover-phase2');
+      if (!run) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">Нет результатов первого прохода</td></tr>';
+        meta.hidden = true;
+        assemble.textContent = 'Собрать дайджест из 0';
+        assemble.disabled = true;
+        recoverPhase1.hidden = true;
+        retryPhase2.hidden = true;
+        recoverPhase2.hidden = true;
+        setReviewStatus('Создайте первый проход для новых новостей или повторите существующий дайджест.');
+        return;
+      }
+      const items = Array.isArray(run.items) ? run.items : [];
+      const settings = run.settings || {};
+      const included = items.filter((item) => item.phase1_status === 'succeeded' && Boolean(Number(item.included))).length;
+      const mutable = run.status === 'awaiting_review' && !READONLY;
+      const canStartPhase2 = !READONLY && (
+        run.status === 'awaiting_review'
+        || (run.status === 'phase2_retryable' && Number(run.phase2_attempt_count || 0) === 0)
+      );
+      const phase1Route = [settings.phase1Vendor, settings.phase1Model, settings.phase1ReasoningEffort]
+        .filter(Boolean).join(' / ');
+      const phase2Route = [settings.phase2Vendor, settings.phase2Model, settings.phase2ReasoningEffort]
+        .filter(Boolean).join(' / ');
+      meta.hidden = false;
+      meta.textContent = `Snapshot настроек: первый вызов читает до ${settings.sourceMaxChars ?? '—'} знаков исходной новости; комментарий ${settings.commentaryMinWords ?? '—'}–${settings.commentaryMaxWords ?? '—'} слов; вызов 1: ${phase1Route || '—'}; вызов 2: ${phase2Route || '—'}.`;
+      const errorState = ['failed', 'phase1_attention_required', 'phase2_inconclusive'].includes(run.status);
+      setReviewStatus(reviewRunStatus(run.status), errorState ? 'error' : (run.status === 'ready_for_review' ? 'success' : ''));
+      if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="empty">В этом проходе нет новостей</td></tr>';
+      } else {
+        tbody.innerHTML = items.map((item, index) => {
+          const isIncluded = Boolean(Number(item.included));
+          const succeeded = item.phase1_status === 'succeeded';
+          const title = item.title || item.url || `Новость ${index + 1}`;
+          const href = safeExternalUrl(item.url);
+          const resultState = succeeded ? '' : ` <span class="date-sub">${escapeHtml(item.phase1_status || 'ожидание')}</span>`;
+          const disabled = !mutable || !succeeded;
+          const wordCount = Number(item.phase1_word_count);
+          const wordOutOfRange = succeeded && Number.isFinite(wordCount)
+            && (wordCount < Number(settings.commentaryMinWords) || wordCount > Number(settings.commentaryMaxWords));
+          const wordTitle = wordOutOfRange
+            ? `Вне snapshot-диапазона ${settings.commentaryMinWords}–${settings.commentaryMaxWords} слов; автоматический повтор не выполнялся.`
+            : '';
+          return `<tr>
+            <td><span class="row-num">${Number(item.position ?? index + 1)}</span></td>
+            <td><a class="review-title-link" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(title)}">${escapeHtml(title)}</a></td>
+            <td><button class="review-secondary review-show" type="button" data-item-id="${escapeHtml(item.id)}">Показать</button>${resultState}</td>
+            <td><span class="review-word-count${wordOutOfRange ? ' out-of-range' : ''}" title="${escapeHtml(wordTitle)}">${item.phase1_word_count ?? '—'}</span></td>
+            <td>${item.phase1_status === 'ambiguous'
+              ? `<button class="review-secondary review-mutation review-resolve" type="button" data-item-id="${escapeHtml(item.id)}" data-action="skip">Пропустить</button> <button class="review-toggle review-mutation review-resolve" type="button" data-item-id="${escapeHtml(item.id)}" data-action="retry">Повторить явно</button>`
+              : `<button class="review-toggle review-mutation${isIncluded ? '' : ' off'}" type="button" data-item-id="${escapeHtml(item.id)}" data-included="${isIncluded}" ${disabled ? 'disabled' : ''}>${isIncluded ? 'Выключить' : 'Включить'}</button>`}</td>
+          </tr>`;
+        }).join('');
+      }
+      assemble.textContent = run.result_digest_id ? 'Дайджест создан' : `Собрать дайджест из ${included}`;
+      assemble.disabled = !canStartPhase2 || included < 1 || Boolean(run.result_digest_id);
+      recoverPhase1.hidden = READONLY || !['phase1_processing', 'phase1_attention_required'].includes(run.status);
+      retryPhase2.hidden = READONLY || run.status !== 'phase2_retryable' || Number(run.phase2_attempt_count || 0) < 1;
+      recoverPhase2.hidden = READONLY || !['phase2_processing', 'phase2_output_ready'].includes(run.status);
+    }
+
+    function showPhase1Item(itemId) {
+      const item = selectedReviewRun?.items?.find((candidate) => candidate.id === itemId);
+      if (!item) return;
+      document.getElementById('modal-title').textContent = item.title || 'Результат первого вызова';
+      document.getElementById('modal-body').textContent = item.phase1_output || item.error || 'Результат пока отсутствует';
+      document.getElementById('modal').classList.add('open');
+    }
+
+    async function toggleReviewItem(itemId, currentlyIncluded, button) {
+      if (!selectedReviewRun || READONLY) return;
+      button.disabled = true;
+      try {
+        await responseJson(await fetch(
+          `/api/digests/review-runs/${encodeURIComponent(selectedReviewRun.id)}/items/${encodeURIComponent(itemId)}`,
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ included: !currentlyIncluded }),
+          }
+        ));
+        await loadReviewRun(selectedReviewRun.id);
+      } catch (err) {
+        button.disabled = false;
+        setReviewStatus(`Не удалось изменить участие новости: ${err.message}`, 'error');
+      }
+    }
+
+    async function startReviewRun() {
+      if (READONLY || reviewMutationPending) return;
+      const button = document.getElementById('review-start');
+      try {
+        const settings = currentReviewSettings();
+        if (!confirm('Запустить первый вызов модели для следующих 30 готовых новостей? Второй вызов и публикация автоматически не выполняются.')) return;
+        reviewMutationPending = true;
+        button.disabled = true;
+        setReviewStatus('Выполняется первый проход. Не закрывайте страницу до ответа сервера...');
+        const data = await responseJson(await fetch('/api/digests/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ settings }),
+        }));
+        await loadReviewRuns(data.runId);
+      } catch (err) {
+        setReviewStatus(`Первый проход не создан: ${err.message}`, 'error');
+      } finally {
+        reviewMutationPending = false;
+        button.disabled = false;
+      }
+    }
+
+    async function rerunDigest(digestId) {
+      if (READONLY || reviewMutationPending) return;
+      try {
+        const settings = currentReviewSettings();
+        if (!confirm('Повторно выполнить первый вызов для новостей этого дайджеста? Исходный дайджест останется неизменным; второй вызов и публикация автоматически не выполняются.')) return;
+        reviewMutationPending = true;
+        switchDigestPanel('processing');
+        setReviewStatus('Создаётся новый независимый проход по исходным новостям...');
+        const data = await responseJson(await fetch(
+          `/api/digests/review-runs/from-digest/${encodeURIComponent(digestId)}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ settings }),
+          }
+        ));
+        await loadReviewRuns(data.runId);
+      } catch (err) {
+        switchDigestPanel('processing');
+        setReviewStatus(`Повторный проход не создан: ${err.message}`, 'error');
+      } finally {
+        reviewMutationPending = false;
+      }
+    }
+
+    async function assembleSelectedReviewRun() {
+      if (!selectedReviewRun || READONLY || reviewMutationPending) return;
+      const items = selectedReviewRun.items || [];
+      const count = items.filter((item) => item.phase1_status === 'succeeded' && Boolean(Number(item.included))).length;
+      if (!confirm(`Собрать новый черновик дайджеста из ${count} выбранных новостей? Это выполнит второй вызов модели, но ничего не опубликует.`)) return;
+      reviewMutationPending = true;
+      const button = document.getElementById('review-assemble');
+      button.disabled = true;
+      setReviewStatus(`Собирается новый дайджест из ${count} новостей...`);
+      try {
+        const data = await responseJson(await fetch(
+          `/api/digests/review-runs/${encodeURIComponent(selectedReviewRun.id)}/assemble`,
+          { method: 'POST' }
+        ));
+        setReviewStatus(`Дайджест ${data.digestId} создан и готов к проверке.`, 'success');
+        await Promise.all([loadReviewRun(selectedReviewRun.id), loadDigests()]);
+      } catch (err) {
+        button.disabled = false;
+        setReviewStatus(`Не удалось собрать дайджест: ${err.message}`, 'error');
+      } finally {
+        reviewMutationPending = false;
+      }
+    }
+
+    async function recoverPhase1Run() {
+      if (!selectedReviewRun || READONLY || reviewMutationPending) return;
+      if (!confirm('Восстановить первый проход? Неотправленный вызов будет продолжен; неоднозначный вызов останется остановленным для вашего решения.')) return;
+      reviewMutationPending = true;
+      try {
+        const data = await responseJson(await fetch(
+          `/api/digests/review-runs/${encodeURIComponent(selectedReviewRun.id)}/recover-phase1`,
+          { method: 'POST' }
+        ));
+        await loadReviewRuns(data.runId);
+      } catch (err) {
+        setReviewStatus(`Не удалось восстановить первый проход: ${err.message}`, 'error');
+      } finally {
+        reviewMutationPending = false;
+      }
+    }
+
+    async function resolvePhase1Item(itemId, action) {
+      if (!selectedReviewRun || READONLY || reviewMutationPending) return;
+      const retry = action === 'retry';
+      const prompt = retry
+        ? 'Повторить неоднозначный вызов? Предыдущий запрос мог быть оплачен; это явное подтверждение возможной двойной стоимости.'
+        : 'Пропустить эту новость без повторного вызова модели?';
+      if (!confirm(prompt)) return;
+      reviewMutationPending = true;
+      try {
+        const data = await responseJson(await fetch(
+          `/api/digests/review-runs/${encodeURIComponent(selectedReviewRun.id)}/items/${encodeURIComponent(itemId)}/resolve-phase1`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action,
+              confirmPossibleDuplicateCost: retry,
+            }),
+          }
+        ));
+        await loadReviewRuns(data.runId);
+      } catch (err) {
+        setReviewStatus(`Не удалось разрешить неоднозначный вызов: ${err.message}`, 'error');
+      } finally {
+        reviewMutationPending = false;
+      }
+    }
+
+    async function retryPhase2Run() {
+      if (!selectedReviewRun || READONLY || reviewMutationPending) return;
+      if (!confirm('Повторить второй вызов модели? Предыдущая попытка доказанно не дала результата, но новый вызов будет платным.')) return;
+      reviewMutationPending = true;
+      try {
+        const data = await responseJson(await fetch(
+          `/api/digests/review-runs/${encodeURIComponent(selectedReviewRun.id)}/retry-phase2`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ confirmPaidRetry: true }),
+          }
+        ));
+        setReviewStatus(`Дайджест ${data.digestId} создан и готов к проверке.`, 'success');
+        await Promise.all([loadReviewRun(selectedReviewRun.id), loadDigests()]);
+      } catch (err) {
+        setReviewStatus(`Повтор второго вызова не выполнен: ${err.message}`, 'error');
+      } finally {
+        reviewMutationPending = false;
+      }
+    }
+
+    async function recoverPhase2Run() {
+      if (!selectedReviewRun || READONLY || reviewMutationPending) return;
+      if (!confirm('Проверить сохранённое состояние второго вызова? Новый вызов модели выполняться не будет.')) return;
+      reviewMutationPending = true;
+      try {
+        const data = await responseJson(await fetch(
+          `/api/digests/review-runs/${encodeURIComponent(selectedReviewRun.id)}/recover-phase2`,
+          { method: 'POST' }
+        ));
+        await Promise.all([loadReviewRun(selectedReviewRun.id), loadDigests()]);
+        setReviewStatus(reviewRunStatus(data.status), data.status === 'ready_for_review' ? 'success' : '');
+      } catch (err) {
+        setReviewStatus(`Восстановление второго вызова остановлено: ${err.message}`, 'error');
+      } finally {
+        reviewMutationPending = false;
+      }
+    }
+
+    document.getElementById('digest-tab-processing').addEventListener('click', () => switchDigestPanel('processing'));
+    document.getElementById('digest-tab-list').addEventListener('click', () => switchDigestPanel('list'));
+    document.getElementById('review-refresh').addEventListener('click', () => loadReviewRuns());
+    document.getElementById('review-start').addEventListener('click', startReviewRun);
+    document.getElementById('review-assemble').addEventListener('click', assembleSelectedReviewRun);
+    document.getElementById('review-recover-phase1').addEventListener('click', recoverPhase1Run);
+    document.getElementById('review-retry-phase2').addEventListener('click', retryPhase2Run);
+    document.getElementById('review-recover-phase2').addEventListener('click', recoverPhase2Run);
+    document.getElementById('review-run-select').addEventListener('change', (event) => loadReviewRun(event.target.value));
+    for (const phase of ['phase1', 'phase2']) {
+      document.getElementById(`review-${phase}-vendor`).addEventListener('change', () => fillReviewModels(phase));
+    }
+    document.getElementById('review-tbody').addEventListener('click', (event) => {
+      const show = event.target.closest('.review-show');
+      if (show) return showPhase1Item(show.dataset.itemId);
+      const resolve = event.target.closest('.review-resolve');
+      if (resolve) return resolvePhase1Item(resolve.dataset.itemId, resolve.dataset.action);
+      const toggle = event.target.closest('.review-toggle');
+      if (toggle) return toggleReviewItem(toggle.dataset.itemId, toggle.dataset.included === 'true', toggle);
+    });
+
     async function loadDigests() {
       try {
         const res = await fetch('/api/digests');
@@ -594,7 +1366,9 @@
 
       tbody.innerHTML = digests.map((d, i) => {
         const status = d.status || 'draft';
-        const selectClass = status === 'published' ? 'is-published' : 'is-draft';
+        const selectClass = status === 'published'
+          ? 'is-published'
+          : status === 'ready_for_review' ? 'is-ready-for-review' : 'is-draft';
         const hasContent = !!d.content;
 
         // Created datetime
@@ -611,8 +1385,11 @@
 
         // Action buttons — per-platform
         let actionBtn = '';
+        const rerunBtn = READONLY
+          ? ''
+          : `<button class="btn btn-rerun review-mutation" onclick="rerunDigest('${d.id}')">Повторить</button>`;
         if (!hasContent) {
-          actionBtn = '<span style="color:#444;font-size:12px">нет контента</span>';
+          actionBtn = `<div class="platform-row"><span style="color:#444;font-size:12px">нет контента</span>${rerunBtn}</div>`;
         } else {
           const tgSent = !!d.telegram_message_id;
           const fbSent = !!d.facebook_post_id;
@@ -623,24 +1400,36 @@
           const fbBtn = fbSent
             ? `<button class="plat-btn sent" disabled>✓ FB</button>`
             : `<button class="plat-btn" onclick="publishPlatform('${d.id}','facebook',this)">📘 FB</button>`;
+          // Opening this review never prepares or publishes a carousel. The
+          // operator must separately confirm both irreversible-looking steps.
+          const igBtn = READONLY
+            ? ''
+            : `<button class="plat-btn" onclick="reviewInstagramCarousel('${d.id}')">IG 10</button>`;
 
           const delBtn = `<button class="btn-delete" onclick="deleteDigest('${d.id}')">✕</button>`;
-          actionBtn = `<div class="platform-row"><button class="btn btn-preview" onclick="previewDigest('${d.id}')">&#128065;</button>${tgBtn}${fbBtn}<button class="btn btn-copy" onclick="copyDigest('${d.id}', this)">&#128203;</button>${delBtn}</div>`;
+          actionBtn = `<div class="platform-row"><button class="btn btn-preview" onclick="previewDigest('${d.id}')">&#128065;</button>${tgBtn}${fbBtn}${igBtn}<button class="btn btn-copy" onclick="copyDigest('${d.id}', this)">&#128203;</button>${rerunBtn}${delBtn}</div>`;
         }
 
         // Status dropdown
         const statusSelect = `<select class="status-select ${selectClass}" ${READONLY ? 'disabled' : ''} onchange="changeStatus('${d.id}', this)">
-          <option value="draft" ${status !== 'published' ? 'selected' : ''}>Черновик</option>
+          <option value="draft" ${status === 'draft' ? 'selected' : ''}>Черновик</option>
+          <option value="ready_for_review" ${status === 'ready_for_review' ? 'selected' : ''}>Готов к проверке</option>
           <option value="published" ${status === 'published' ? 'selected' : ''}>Опубликован</option>
         </select>`;
 
         // Cost cell
         let costHtml;
-        if (d.cost_usd !== null && d.cost_usd !== undefined) {
-          const inTok = d.input_tokens || 0;
-          const outTok = d.output_tokens || 0;
-          const title = `${d.model || 'модель не указана'} · ${inTok}/${outTok} токенов`;
-          costHtml = `<span class="cost-val" title="${title}">$${Number(d.cost_usd).toFixed(4)}</span>`;
+        if (d.total_cost_usd !== null && d.total_cost_usd !== undefined) {
+          const inTok = d.total_input_tokens ?? d.input_tokens ?? 0;
+          const outTok = d.total_output_tokens ?? d.output_tokens ?? 0;
+          const cardCost = Number(d.instagram_card_cost_usd || 0);
+          const title = `${d.model || 'модель не указана'} + Instagram-карусель · ${inTok}/${outTok} токенов · карусель $${cardCost.toFixed(6)}`;
+          costHtml = `<span class="cost-val" title="${title}">$${Number(d.total_cost_usd).toFixed(4)}</span>`;
+        } else if (d.known_total_cost_usd !== null && d.known_total_cost_usd !== undefined) {
+          const inTok = d.total_input_tokens ?? d.input_tokens ?? 0;
+          const outTok = d.total_output_tokens ?? d.output_tokens ?? 0;
+          const title = `Известная часть: ${inTok}/${outTok} токенов. Одна или несколько модельных попыток не вернули usage, поэтому итоговая сумма неизвестна.`;
+          costHtml = `<span class="cost-val" title="${title}">≥$${Number(d.known_total_cost_usd).toFixed(4)}</span>`;
         } else {
           costHtml = '<span class="no-pub">—</span>';
         }
@@ -681,7 +1470,9 @@
           body: JSON.stringify({ status }),
         });
         if (!res.ok) throw new Error('Server error');
-        select.className = 'status-select ' + (status === 'published' ? 'is-published' : 'is-draft');
+        select.className = 'status-select ' + (status === 'published'
+          ? 'is-published'
+          : status === 'ready_for_review' ? 'is-ready-for-review' : 'is-draft');
         // Reload to update published date
         setTimeout(loadDigests, 300);
       } catch (err) {
@@ -728,7 +1519,8 @@
       if (!confirm('Удалить этот дайджест? Статьи вернутся в очередь.')) return;
       try {
         const res = await fetch(`/api/digests/${id}`, { method: 'DELETE' });
-        if (!res.ok) throw new Error('Server error');
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Server error');
         loadDigests();
       } catch (err) {
         alert('Ошибка удаления: ' + err.message);
@@ -749,6 +1541,419 @@
         body.textContent = text;
       } catch (err) {
         body.textContent = 'Ошибка загрузки: ' + err.message;
+      }
+    }
+
+    const CAROUSEL_STATUS_LABELS = {
+      not_prepared: 'Не подготовлено (not_prepared)',
+      preparing: 'Подготовка (preparing)',
+      ready: 'Готово (ready)',
+      publishing: 'Публикация выполняется (publishing)',
+      partial: 'Частичный результат (partial)',
+      awaiting_reconciliation: 'Нужна сверка (awaiting_reconciliation)',
+      inconclusive: 'Результат не подтверждён (inconclusive)',
+      published: 'Опубликовано (published)',
+      blocked: 'Заблокировано (blocked)',
+      failed: 'Ошибка подготовки (failed)',
+      not_started: 'Не опубликовано (not_started)',
+    };
+
+    const COMMENT_ORDER_REPAIR_LABELS = {
+      not_eligible: 'Исправление не требуется',
+      preflight_required: 'Нужна проверка порядка',
+      ready: 'План исправления готов',
+      repairing: 'Исправление выполняется',
+      awaiting_reconciliation: 'Нужна сверка исправления',
+      completed: 'Исправление завершено',
+      blocked: 'Исправление заблокировано',
+    };
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>'"]/g, (char) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;',
+      }[char]));
+    }
+
+    function carouselStatusLabel(status) {
+      return CAROUSEL_STATUS_LABELS[status] || 'Неизвестное состояние';
+    }
+
+    function carouselStatusPill(status) {
+      return `<span class="carousel-status is-${escapeHtml(status)}">${escapeHtml(carouselStatusLabel(status))}</span>`;
+    }
+
+    function commentOrderRepairLabel(status) {
+      return COMMENT_ORDER_REPAIR_LABELS[status] || 'Неизвестное состояние исправления';
+    }
+
+    function repairActionCount(actions) {
+      return Number(actions?.total || 0);
+    }
+
+    function renderInstagramCommentOrderRepair(id, repair) {
+      if (!repair || repair.status === 'not_eligible') return '';
+      const count = Number(repair.logical_part_count || 0);
+      const status = String(repair.status || 'preflight_required');
+      const sourceProven = repair.source_proven === true;
+      const originalCount = repairActionCount(repair.original_actions);
+      const replacementCount = repairActionCount(repair.replacement_actions);
+      const observedOrder = repair.known_reader_order === 'descending_logical'
+        ? `${count} → 1`
+        : 'не подтверждён';
+      const desiredOrder = repair.desired_reader_order === 'ascending_logical'
+        ? `1 → ${count}`
+        : 'не определён';
+      const accepted = Number(repair.original_actions?.accepted || 0)
+        + Number(repair.original_actions?.reconciled || 0)
+        + Number(repair.replacement_actions?.accepted || 0)
+        + Number(repair.replacement_actions?.reconciled || 0);
+      const uncertain = Number(repair.original_actions?.intent || 0)
+        + Number(repair.original_actions?.unknown || 0)
+        + Number(repair.original_actions?.ambiguous || 0)
+        + Number(repair.original_actions?.inconclusive || 0)
+        + Number(repair.replacement_actions?.intent || 0)
+        + Number(repair.replacement_actions?.unknown || 0)
+        + Number(repair.replacement_actions?.ambiguous || 0)
+        + Number(repair.replacement_actions?.inconclusive || 0);
+      const isInconclusive = status === 'awaiting_reconciliation' || uncertain > 0;
+      const actions = status === 'preflight_required'
+        ? `<button class="carousel-action" onclick="preflightInstagramCommentOrderRepair('${escapeHtml(id)}')">Проверить порядок комментариев (только чтение)</button>`
+        : status === 'ready' && sourceProven && count > 0
+          ? `<button class="carousel-action publish" onclick="repairInstagramCommentOrder('${escapeHtml(id)}', ${count})">Исправить: удалить ${count} и создать ${count} комментариев</button>`
+          : isInconclusive
+            ? `<button class="carousel-action" onclick="reconcileInstagramCommentOrderRepair('${escapeHtml(id)}')">Сверить исправление (только чтение)</button>`
+            : '';
+      const plan = sourceProven
+        ? `<p>Read-only проверка этого поста подтвердила порядок: сейчас ${escapeHtml(observedOrder)}, нужен ${escapeHtml(desiredOrder)}. При подтверждённом действии сервер ещё раз проверит исходные комментарии, затем удалит ${originalCount || count} собственных комментариев и создаст ${replacementCount || count} тех же фрагментов в обратном порядке отправки.</p>`
+        : '<p>До внешнего действия требуется read-only preflight: он проверит точные собственные комментарии и наблюдаемый порядок именно этого поста.</p>';
+      const outcome = status === 'completed'
+        ? `<p>Принято или сверено действий: ${accepted}. Карусель, изображения, подпись и канонический текст не изменялись. Это доказывает только actions/receipts: ranking top-level comments не подтверждает reader-visible порядок. Для ошибочного legacy-поста используйте отдельную replacement-ветку ниже.</p>`
+        : isInconclusive
+          ? `<p>Состояние части действий не подтверждено. Новые удаления и публикации заблокированы до read-only сверки; повторной отправки нет.</p>`
+          : repair.error
+            ? `<p>Причина: ${escapeHtml(repair.error)}</p>`
+            : '';
+      return `<section class="carousel-repair ${status === 'completed' ? 'is-completed' : ''}">
+        <p><strong>Порядок continuation-комментариев</strong> · ${escapeHtml(commentOrderRepairLabel(status))}</p>
+        ${plan}
+        ${outcome}
+        ${actions ? `<div class="carousel-actions">${actions}</div>` : ''}
+      </section>`;
+    }
+
+    function renderInstagramCommentDelivery(delivery, comments) {
+      if (!Array.isArray(comments) || comments.length === 0) return '';
+      if (delivery?.topology !== 'threaded_replies') {
+        return '<p>Continuation этого legacy-поста состоит из отдельных верхнеуровневых комментариев.</p>';
+      }
+      const receipts = Array.isArray(delivery.receipt_operations) ? delivery.receipt_operations : [];
+      const root = receipts.find((receipt) => receipt.operation === 'comment' && Number(receipt.ordinal) === 1);
+      const replies = receipts.filter((receipt) => receipt.operation === 'comment_reply');
+      const rootState = root ? String(root.state || 'intent') : 'ещё не отправлен';
+      const replyStates = replies.length
+        ? `${replies.length} receipt: ${replies.map((receipt) => String(receipt.state || 'intent')).join(', ')}`
+        : 'ещё не отправлены';
+      const range = comments.length > 1 ? `2–${comments.length}` : 'нет';
+      return `<p><strong>Continuation — одна ветка.</strong> Часть 1 — единственный верхнеуровневый комментарий (receipt: ${escapeHtml(rootState)}). Части ${escapeHtml(range)} — ответы на него в каноническом порядке (reply receipts: ${escapeHtml(replyStates)}). Meta не даёт контракт на визуальную сортировку; после реальной публикации требуется отдельная проверка этого поста в Instagram.</p>`;
+    }
+
+    function renderInstagramRepublication(id, republication, status) {
+      if (!republication?.eligible) return '';
+      const runStatus = String(status || 'not_prepared');
+      const retired = String(republication.retired_media_state || 'not_checked');
+      const receipt = republication.receipt_summary || {};
+      const unresolved = Number(receipt.intent || 0) + Number(receipt.unknown || 0)
+        + Number(receipt.inconclusive || 0) + Number(receipt.ambiguous || 0);
+      const source = republication.source_proven
+        ? `Источник доказан: ${Number(republication.asset_count || 0)} immutable assets, ${Number(republication.comment_part_count || 0)} continuation parts, model calls: ${Number(republication.model_calls || 0)}.`
+        : 'Источник пока не прошёл exact local verification.';
+      const retiredText = retired === 'missing'
+        ? 'Старый media id только что вернул definite 404: можно запросить одну replacement-публикацию.'
+        : retired === 'present'
+          ? 'Старый пост ещё существует: новая публикация жёстко заблокирована.'
+          : retired === 'inconclusive'
+            ? 'Удаление старого поста не удалось доказать; новая публикация запрещена.'
+            : 'Состояние старого поста ещё не проверено read-only запросом.';
+      let actions = '';
+      if (runStatus === 'not_prepared') {
+        actions = `<button class="carousel-action" onclick="prepareInstagramRepublication('${escapeHtml(id)}')">Подготовить отдельный ledger (без Meta)</button>`;
+      } else if (runStatus === 'ready' && retired === 'missing') {
+        actions = `<button class="carousel-action publish" onclick="publishInstagramRepublication('${escapeHtml(id)}')">Перепубликовать после подтверждённого удаления</button>`;
+      } else if (runStatus === 'inconclusive' || unresolved > 0) {
+        actions = `<button class="carousel-action" onclick="reconcileInstagramRepublication('${escapeHtml(id)}')">Сверить неопределённое состояние (только чтение)</button>`;
+      } else if (runStatus !== 'published') {
+        actions = `<button class="carousel-action" onclick="preflightInstagramRepublication('${escapeHtml(id)}')">Проверить удаление старого поста (только чтение)</button>`;
+      }
+      const outcome = runStatus === 'published'
+        ? '<p>Replacement receipts приняты. Это не заменяет ручную visual-проверку нового поста и раскрытого reply thread в Instagram.</p>'
+        : republication.error
+          ? `<p>Причина: ${escapeHtml(republication.error)}</p>`
+          : '';
+      return `<section class="carousel-repair ${runStatus === 'published' ? 'is-completed' : ''}">
+        <p><strong>Безопасная замена legacy-поста</strong> · ${escapeHtml(carouselStatusLabel(runStatus))}</p>
+        <p>${escapeHtml(source)}</p>
+        <p>${escapeHtml(retiredText)}</p>
+        ${outcome}
+        ${actions ? `<div class="carousel-actions">${actions}</div>` : ''}
+      </section>`;
+    }
+
+    function openCarouselModal() {
+      const modal = document.getElementById('modal');
+      document.getElementById('modal-title').textContent = 'Instagram: 10 карточек';
+      modal.classList.add('open');
+      return document.getElementById('modal-body');
+    }
+
+    function renderCarouselNotPrepared(id) {
+      const body = openCarouselModal();
+      body.innerHTML = `<p>Для этого дайджеста ещё нет подготовленной карусели из 10 карточек.</p>
+        <div class="carousel-actions">
+          <button class="carousel-action" onclick="prepareInstagramCarousel('${escapeHtml(id)}')">Подготовить 10 карточек</button>
+        </div>`;
+    }
+
+    function renderInstagramCarouselReview(id, carousel) {
+      const body = openCarouselModal();
+      const assets = Array.isArray(carousel.assets) ? carousel.assets : [];
+      const comments = Array.isArray(carousel.comments) ? carousel.comments : [];
+      const receipt = carousel.receipt_summary || {};
+      const preparation = carousel.preparation_status || 'not_prepared';
+      const delivery = carousel.delivery_status || 'not_started';
+      const exactAssetsReady = carousel.assets_valid === true && assets.length === 10;
+      const textReady = carousel.text_valid === true && typeof carousel.caption === 'string';
+      const canPublish = exactAssetsReady && textReady && preparation === 'ready' && delivery === 'not_started';
+      const thumbnails = exactAssetsReady
+        ? `<div class="carousel-assets">${assets.map((asset) => `<div class="carousel-asset"><img src="${escapeHtml(asset.asset_url)}" alt="Карточка ${Number(asset.position)}"><span>${Number(asset.position)} / 10</span></div>`).join('')}</div>`
+        : '<p>Все 10 файлов должны быть локально подтверждены до показа и публикации. Сейчас набор не готов.</p>';
+      const copy = textReady
+        ? `<details class="carousel-copy"><summary>Подпись (${Array.from(carousel.caption).length} знаков) и комментарии (${comments.length})</summary><p><strong>Подпись</strong></p><p>${escapeHtml(carousel.caption)}</p>${comments.map((comment, index) => `<p><strong>Комментарий ${index + 1}</strong></p><p>${escapeHtml(comment)}</p>`).join('')}</details>`
+        : '<p>Подпись и комментарии не прошли проверку для Instagram-карусели.</p>';
+      const receiptSummary = `Receipt: всего ${Number(receipt.total || 0)}, принято ${Number(receipt.accepted || 0)}, сверено ${Number(receipt.reconciled || 0)}, ожидание ${Number(receipt.intent || 0)}, неопределённых ${Number(receipt.unknown || 0) + Number(receipt.inconclusive || 0) + Number(receipt.ambiguous || 0)}.`;
+      const commentOrderRepair = renderInstagramCommentOrderRepair(id, carousel.comment_order_repair);
+      const commentDelivery = renderInstagramCommentDelivery(carousel.comment_delivery, comments);
+      const republication = renderInstagramRepublication(
+        id,
+        carousel.republication,
+        carousel.republication_status
+      );
+
+      body.innerHTML = `
+        <p>${carouselStatusPill(preparation)}${carouselStatusPill(delivery)}</p>
+        <p>Подготовка: ${escapeHtml(carouselStatusLabel(preparation))}. Доставка: ${escapeHtml(carouselStatusLabel(delivery))}.</p>
+        ${thumbnails}
+        ${copy}
+        <p>${escapeHtml(receiptSummary)}</p>
+        ${commentDelivery}
+        ${commentOrderRepair}
+        ${republication}
+        <div class="carousel-actions">
+          ${canPublish ? `<button class="carousel-action publish" onclick="publishInstagramCarousel('${escapeHtml(id)}')">Опубликовать карусель</button>` : ''}
+          <button class="carousel-action" onclick="reconcileInstagramCarousel('${escapeHtml(id)}')">Сверить состояние (только чтение)</button>
+        </div>`;
+    }
+
+    async function reviewInstagramCarousel(id) {
+      const body = openCarouselModal();
+      body.textContent = 'Загрузка проверки карусели...';
+      try {
+        const [res, republicationRes] = await Promise.all([
+          fetch(`/api/digests/${id}/instagram-carousel`),
+          fetch(`/api/digests/${id}/instagram-carousel/republication`),
+        ]);
+        const data = await res.json().catch(() => ({}));
+        const republicationData = await republicationRes.json().catch(() => ({}));
+        if (res.status === 404 && data.status === 'not_prepared') {
+          renderCarouselNotPrepared(id);
+          return;
+        }
+        if (!res.ok) throw new Error(data.error || 'Не удалось загрузить проверку карусели');
+        renderInstagramCarouselReview(id, {
+          ...(data.carousel || {}),
+          republication: republicationData.republication || null,
+          republication_status: republicationData.status || null,
+        });
+      } catch (err) {
+        body.textContent = 'Ошибка загрузки: ' + err.message;
+      }
+    }
+
+    async function applyInstagramRepublicationResult(id, res, fallbackError) {
+      const data = await res.json().catch(() => ({}));
+      if (!data.republication) {
+        if (!res.ok) throw new Error(data.error || fallbackError);
+        await reviewInstagramCarousel(id);
+        return;
+      }
+      const reviewRes = await fetch(`/api/digests/${id}/instagram-carousel`);
+      const reviewData = await reviewRes.json().catch(() => ({}));
+      if (!reviewRes.ok || !reviewData.carousel) {
+        throw new Error(reviewData.error || 'Не удалось обновить immutable review карусели');
+      }
+      renderInstagramCarouselReview(id, {
+        ...reviewData.carousel,
+        republication: data.republication,
+        republication_status: data.status || null,
+      });
+      if (!res.ok && !['blocked', 'inconclusive'].includes(data.status)) {
+        throw new Error(data.error || fallbackError);
+      }
+    }
+
+    async function prepareInstagramRepublication(id) {
+      const body = openCarouselModal();
+      body.textContent = 'Создаём отдельный immutable ledger без обращения к Meta...';
+      try {
+        const res = await fetch(`/api/digests/${id}/instagram-carousel/republication/prepare`, { method: 'POST' });
+        await applyInstagramRepublicationResult(id, res, 'Подготовка replacement ledger недоступна');
+      } catch (err) {
+        body.textContent = 'Подготовка replacement ledger не выполнена: ' + err.message;
+      }
+    }
+
+    async function preflightInstagramRepublication(id) {
+      const body = openCarouselModal();
+      body.textContent = 'Проверяем удаление старого media id без публикации...';
+      try {
+        const res = await fetch(`/api/digests/${id}/instagram-carousel/republication/retired-media-preflight`);
+        await applyInstagramRepublicationResult(id, res, 'Проверка удаления старого поста недоступна');
+      } catch (err) {
+        body.textContent = 'Удаление не подтверждено: ' + err.message;
+      }
+    }
+
+    async function publishInstagramRepublication(id) {
+      if (!confirm('Создать одну replacement-карусель из тех же 10 immutable карточек после удалённого legacy-поста? Сервер ещё раз докажет HTTP 404 старого media id непосредственно перед записью. При неизвестном результате ничего не будет повторно отправлено.')) return;
+      const body = openCarouselModal();
+      body.textContent = 'Повторно проверяем удаление и выполняем единственную replacement-публикацию...';
+      try {
+        const res = await fetch(`/api/digests/${id}/instagram-carousel/republication/publish`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirm: 'REPUBLISH_AFTER_OWNER_DELETE' }),
+        });
+        await applyInstagramRepublicationResult(id, res, 'Replacement-публикация не подтверждена');
+        loadDigests();
+      } catch (err) {
+        body.textContent = 'Replacement-публикация не выполнена: ' + err.message;
+      }
+    }
+
+    async function reconcileInstagramRepublication(id) {
+      const body = openCarouselModal();
+      body.textContent = 'Сверяем replacement receipts без новой публикации...';
+      try {
+        const res = await fetch(`/api/digests/${id}/instagram-carousel/republication/reconcile`, { method: 'POST' });
+        await applyInstagramRepublicationResult(id, res, 'Сверка replacement недоступна');
+      } catch (err) {
+        body.textContent = 'Сверка replacement не завершена: ' + err.message;
+      }
+    }
+
+    async function prepareInstagramCarousel(id) {
+      if (!confirm('Подготовить 10 карточек для локальной проверки? Это не публикует их в Instagram.')) return;
+      const body = openCarouselModal();
+      body.textContent = 'Подготавливаем локальный набор для проверки...';
+      try {
+        const res = await fetch(`/api/digests/${id}/instagram-carousel/prepare`, { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Подготовка карусели недоступна');
+        await reviewInstagramCarousel(id);
+      } catch (err) {
+        body.textContent = 'Подготовка не выполнена: ' + err.message;
+      }
+    }
+
+    async function publishInstagramCarousel(id) {
+      if (!confirm('Опубликовать эту проверенную карусель из 10 карточек в Instagram? Это отдельное внешнее действие.')) return;
+      const body = openCarouselModal();
+      body.textContent = 'Отправляем единственную явную публикацию...';
+      try {
+        const res = await fetch(`/api/digests/${id}/instagram-carousel/publish`, { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Публикация карусели не подтверждена');
+        await reviewInstagramCarousel(id);
+        loadDigests();
+      } catch (err) {
+        body.textContent = 'Публикация не выполнена: ' + err.message;
+      }
+    }
+
+    async function reconcileInstagramCarousel(id) {
+      if (!confirm('Сверить состояние карусели? Это действие только читает состояние Meta и не публикует ничего нового.')) return;
+      const body = openCarouselModal();
+      body.textContent = 'Сверяем состояние без публикации...';
+      try {
+        const res = await fetch(`/api/digests/${id}/instagram-carousel/reconcile`, { method: 'POST' });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Сверка состояния недоступна');
+        await reviewInstagramCarousel(id);
+      } catch (err) {
+        body.textContent = 'Сверка не завершена: ' + err.message;
+      }
+    }
+
+    async function applyInstagramCommentOrderRepairResult(id, res, fallbackError) {
+      const data = await res.json().catch(() => ({}));
+      const repair = data?.carousel?.comment_order_repair;
+      if (repair) {
+        // The read-only preflight returns only the sanitized repair plan. Keep
+        // the existing immutable carousel review visible and overlay that fresh
+        // plan instead of rendering a misleading empty asset/copy section.
+        const reviewRes = await fetch(`/api/digests/${id}/instagram-carousel`);
+        const reviewData = await reviewRes.json().catch(() => ({}));
+        if (!reviewRes.ok || !reviewData.carousel) {
+          throw new Error(reviewData.error || 'Не удалось обновить проверку карусели');
+        }
+        renderInstagramCarouselReview(id, {
+          ...reviewData.carousel,
+          comment_order_repair: repair,
+        });
+        if (!res.ok) return;
+        return;
+      }
+      if (!res.ok) throw new Error(data.error || fallbackError);
+      await reviewInstagramCarousel(id);
+    }
+
+    async function preflightInstagramCommentOrderRepair(id) {
+      const body = openCarouselModal();
+      body.textContent = 'Проверяем порядок комментариев в Meta без новых публикаций...';
+      try {
+        const res = await fetch(`/api/digests/${id}/instagram-carousel/comment-order-repair`);
+        await applyInstagramCommentOrderRepairResult(id, res, 'Проверка порядка недоступна');
+      } catch (err) {
+        body.textContent = 'Порядок не подтверждён: ' + err.message;
+      }
+    }
+
+    async function repairInstagramCommentOrder(id, count) {
+      const actionCount = count * 2;
+      const confirmation = `Исправить порядок ${count} continuation-комментариев в уже опубликованной Instagram-карусели?\n\nБудет ${actionCount} внешних действий: удалить ${count} исходных собственных комментариев и создать ${count} тех же фрагментов в исправленном порядке. Карусель, изображения, подпись и канонический текст не изменятся.\n\nПри неопределённом ответе процесс остановится: ничего не будет повторно отправлено. Продолжить?`;
+      if (!confirm(confirmation)) return;
+      const body = openCarouselModal();
+      body.textContent = 'Исправляем подтверждённый порядок комментариев...';
+      try {
+        const res = await fetch(`/api/digests/${id}/instagram-carousel/comment-order-repair`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ confirm: 'REPAIR_COMMENT_ORDER' }),
+        });
+        await applyInstagramCommentOrderRepairResult(id, res, 'Исправление порядка не подтверждено');
+      } catch (err) {
+        body.textContent = 'Исправление не выполнено: ' + err.message;
+      }
+    }
+
+    async function reconcileInstagramCommentOrderRepair(id) {
+      if (!confirm('Сверить исправление порядка? Meta будет только прочитана; новые удаления и публикации не выполняются.')) return;
+      const body = openCarouselModal();
+      body.textContent = 'Сверяем исправление без новых внешних действий...';
+      try {
+        const res = await fetch(`/api/digests/${id}/instagram-carousel/comment-order-repair/reconcile`, { method: 'POST' });
+        await applyInstagramCommentOrderRepairResult(id, res, 'Сверка исправления недоступна');
+      } catch (err) {
+        body.textContent = 'Сверка не завершена: ' + err.message;
       }
     }
 
@@ -803,7 +2008,11 @@
 
     loadAuth().finally(() => {
       loadDigests();
-      setInterval(loadDigests, 30000);
+      loadReviewWorkspace();
+      setInterval(() => {
+        loadDigests();
+        if (!READONLY) loadReviewRuns();
+      }, 30000);
     });
   </script>
 </body>

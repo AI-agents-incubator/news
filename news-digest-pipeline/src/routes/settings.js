@@ -4,6 +4,7 @@ import { randomBytes } from 'crypto';
 import config, { paths, reloadConfig } from '../config.js';
 import { MODEL_CATALOG } from '../data/model-catalog.js';
 import { isAuthenticated } from '../middleware/auth.js';
+import { normalizeProviderBaseUrl } from '../services/provider-endpoints.js';
 
 const router = Router();
 
@@ -134,6 +135,27 @@ function buildSettingsPayload() {
         pageId: maskSecret(config.facebookPageId),
         pageAccessToken: maskSecret(config.facebookPageAccessToken),
       },
+      getresponse: {
+        apiKey: maskSecret(config.getresponseApiKey),
+        campaignId: maskSecret(config.getresponseCampaignId),
+        fromFieldId: maskSecret(config.getresponseFromFieldId),
+        configured: !!(config.getresponseApiKey && config.getresponseCampaignId),
+        delivery: 'draft_only',
+      },
+      substack: {
+        publisherUrl: config.substackPublisherUrl || '',
+        publisherToken: maskSecret(config.substackPublisherToken),
+        publicationUrl: config.substackPublicationUrl || '',
+        mode: config.substackMode || 'draft_only',
+        titlePrefix: config.substackTitlePrefix ?? '[TEST]',
+        webPublishEnabled: config.substackWebPublishEnabled === true,
+        configured: !!(
+          config.substackPublisherUrl
+          && config.substackPublisherToken
+          && config.substackPublicationUrl
+        ),
+        emailDelivery: 'disabled',
+      },
       anthropicApiKey: maskSecret(config.anthropicApiKey),
       openaiApiKey: maskSecret(config.openaiApiKey),
       falKey: maskSecret(config.falKey),
@@ -237,7 +259,7 @@ function isInt(v) {
  * Validate the incoming PATCH body. Returns { errors: [], env: {}, files: [] }.
  * Only known/allowed fields are considered; everything else is ignored.
  */
-function validatePatch(body) {
+export function validatePatch(body) {
   const errors = [];
   const env = {};   // ENV_KEY -> string value to write
   const files = []; // [{ path, contents }]
@@ -272,9 +294,10 @@ function validatePatch(body) {
   }
 
   // Base URLs. Empty string is allowed (resets to vendor default) and is still
-  // written to .env so the user can explicitly clear it. Non-empty must be a
-  // valid http(s) URL.
-  const baseUrlField = (name, envKey) => {
+  // written to .env so the user can explicitly clear it. Non-empty values must
+  // be the official provider HTTPS root; accepting arbitrary hosts would let a
+  // compromised dashboard session exfiltrate API keys and prompt/article data.
+  const baseUrlField = (name, vendor, envKey) => {
     if (body[name] === undefined) return;
     const v = body[name];
     if (typeof v !== 'string') {
@@ -289,15 +312,16 @@ function validatePatch(body) {
       errors.push(`${name}: не должно содержать переносы строк`);
       return;
     }
-    if (v.length > 0 && !/^https?:\/\//.test(v)) {
-      errors.push(`${name}: должно начинаться с http:// или https://`);
+    const normalized = normalizeProviderBaseUrl(vendor, v);
+    if (normalized === null) {
+      errors.push(`${name}: допустим только официальный HTTPS endpoint ${vendor} или пустое значение`);
       return;
     }
-    env[envKey] = v;
+    env[envKey] = normalized;
   };
 
-  baseUrlField('anthropicBaseUrl', ENV_WRITABLE.anthropicBaseUrl);
-  baseUrlField('openaiBaseUrl', ENV_WRITABLE.openaiBaseUrl);
+  baseUrlField('anthropicBaseUrl', 'anthropic', ENV_WRITABLE.anthropicBaseUrl);
+  baseUrlField('openaiBaseUrl', 'openai', ENV_WRITABLE.openaiBaseUrl);
 
   // OpenAI reasoning effort. Empty string is allowed and written so the user can
   // explicitly clear it (nothing gets sent at runtime). Non-empty must be a short

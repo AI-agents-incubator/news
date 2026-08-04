@@ -1,5 +1,5 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { isAuthenticated } from './auth.js';
+import { isAuthenticated, operatorAuth, writeAuth } from './auth.js';
 
 // With no credentials on the request, isAuthenticated(req) collapses to
 // authDisabled(): true = auth OFF (open), false = auth ENFORCED. These tests pin
@@ -60,5 +60,82 @@ describe('?key= query auth is removed (F-19)', () => {
     process.env.API_SECRET_KEY = 'secret-test-key';
     const req = { headers: { authorization: 'Bearer nope' }, query: {} };
     expect(isAuthenticated(req)).toBe(false);
+  });
+});
+
+describe('operator-only auth', () => {
+  function invoke(req) {
+    const result = { next: false, status: null, body: null };
+    const res = {
+      status(code) {
+        result.status = code;
+        return this;
+      },
+      json(body) {
+        result.body = body;
+        return this;
+      },
+    };
+    operatorAuth(req, res, () => { result.next = true; });
+    return result;
+  }
+
+  it('requires credentials for a production GET', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.API_SECRET_KEY = 'secret-test-key';
+    const result = invoke({ method: 'GET', headers: {} });
+    expect(result.next).toBe(false);
+    expect(result.status).toBe(401);
+  });
+
+  it('allows an authenticated production GET', () => {
+    process.env.NODE_ENV = 'production';
+    process.env.API_SECRET_KEY = 'secret-test-key';
+    const result = invoke({
+      method: 'GET',
+      headers: { authorization: 'Bearer secret-test-key' },
+    });
+    expect(result.next).toBe(true);
+    expect(result.status).toBeNull();
+  });
+
+  it('remains open in explicit test mode', () => {
+    process.env.NODE_ENV = 'test';
+    const result = invoke({ method: 'GET', headers: {} });
+    expect(result.next).toBe(true);
+  });
+});
+
+describe('public Meta signed callbacks', () => {
+  function invoke(path, method = 'POST') {
+    const result = { next: false, status: null, body: null };
+    const req = { method, path, headers: {}, query: {} };
+    const res = {
+      status(code) {
+        result.status = code;
+        return this;
+      },
+      json(body) {
+        result.body = body;
+        return this;
+      },
+    };
+    writeAuth(req, res, () => { result.next = true; });
+    return result;
+  }
+
+  it('lets Meta reach only the two exact signed Threads POST callbacks', () => {
+    process.env.NODE_ENV = 'production';
+    expect(invoke('/oauth/threads/uninstall').next).toBe(true);
+    expect(invoke('/oauth/threads/delete').next).toBe(true);
+    expect(invoke('/api/oauth/threads/uninstall').next).toBe(true);
+    expect(invoke('/api/oauth/threads/delete').next).toBe(true);
+  });
+
+  it('does not open neighboring or status POST routes', () => {
+    process.env.NODE_ENV = 'production';
+    expect(invoke('/oauth/threads/delete/status').status).toBe(401);
+    expect(invoke('/oauth/threads/callback').status).toBe(401);
+    expect(invoke('/oauth/threads/delete/other').status).toBe(401);
   });
 });

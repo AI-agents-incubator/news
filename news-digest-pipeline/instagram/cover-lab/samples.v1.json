@@ -1,0 +1,70 @@
+{
+  "schema_version": "instagram-cover-lab.samples.v1",
+  "selection": {
+    "method": "owner-selected random Facebook posts",
+    "count": 10,
+    "note": "The first eight IDs exist in the production source-post inventory; the final two are intentionally external public permalinks and are never inserted into source_posts."
+  },
+  "samples": [
+    {
+      "sample_id": "01-05035bfd",
+      "source_post_id": "05035bfd-ec97-4572-ba9a-050c1a3d36a1",
+      "pfbid": "pfbid02wykiyfoSFRSJ78wCFzuXQSwCDKXwHaJc4PYTbkDSmhgNXFg98vjnQXfLLBP7eLRLl",
+      "source_url": "https://www.facebook.com/alex.v.krol/posts/pfbid02wykiyfoSFRSJ78wCFzuXQSwCDKXwHaJc4PYTbkDSmhgNXFg98vjnQXfLLBP7eLRLl"
+    },
+    {
+      "sample_id": "02-77365881",
+      "source_post_id": "77365881-f7d4-4e78-a626-3148498e94bf",
+      "pfbid": "pfbid02DEFPDXwQPPpTgdZaXc6oEqyeUNcpzN5713M3hw8wDB4pp5qUY7RmowJ8uGEBNvjgl",
+      "source_url": "https://www.facebook.com/alex.v.krol/posts/pfbid02DEFPDXwQPPpTgdZaXc6oEqyeUNcpzN5713M3hw8wDB4pp5qUY7RmowJ8uGEBNvjgl"
+    },
+    {
+      "sample_id": "03-113cfc89",
+      "source_post_id": "113cfc89-5dbf-40e1-9017-03d48520752d",
+      "pfbid": "pfbid0DgMKBCDhhZHkD8vBPAdUpgskA6ubewF4Miwy531fFwxmHJBeqT3S9mKLoL6b5rtal",
+      "source_url": "https://www.facebook.com/alex.v.krol/posts/pfbid0DgMKBCDhhZHkD8vBPAdUpgskA6ubewF4Miwy531fFwxmHJBeqT3S9mKLoL6b5rtal"
+    },
+    {
+      "sample_id": "04-39ea1a91",
+      "source_post_id": "39ea1a91-6266-4c3e-a5b2-d2a8cfd98581",
+      "pfbid": "pfbid0UCgtkNVQDHfLASMDgXXsPj5unXFLQNNbNgdxEocvMaY3NMpBogJjtkKu4PcKEpG1l",
+      "source_url": "https://www.facebook.com/alex.v.krol/posts/pfbid0UCgtkNVQDHfLASMDgXXsPj5unXFLQNNbNgdxEocvMaY3NMpBogJjtkKu4PcKEpG1l"
+    },
+    {
+      "sample_id": "05-515795a3",
+      "source_post_id": "515795a3-39ec-4f7b-aade-6884403325a2",
+      "pfbid": "pfbid02Gk32QBZ4QSk53X7dErsQNXFNBpeab68mUDYV7KvG8qhzYLM9vX8WzMUtCTV6U59vl",
+      "source_url": "https://www.facebook.com/alex.v.krol/posts/pfbid02Gk32QBZ4QSk53X7dErsQNXFNBpeab68mUDYV7KvG8qhzYLM9vX8WzMUtCTV6U59vl"
+    },
+    {
+      "sample_id": "06-d5d7e203",
+      "source_post_id": "d5d7e203-3c62-420a-b9fd-026b24bc362a",
+      "pfbid": "pfbid02znb6Unfoov2nyyrWefKAtguh5oB5VzySws9vCHXsJfZ4riv3LNtLrAFwM1yWZbkPl",
+      "source_url": "https://www.facebook.com/alex.v.krol/posts/pfbid02znb6Unfoov2nyyrWefKAtguh5oB5VzySws9vCHXsJfZ4riv3LNtLrAFwM1yWZbkPl"
+    },
+    {
+      "sample_id": "07-502b1e1c",
+      "source_post_id": "502b1e1c-0c87-4520-abf9-da6815e57710",
+      "pfbid": "pfbid0EaLThNPj7w1qQgj7gARy1AfaNhemrdMgnkgKW6HPkX9pqgAG2AoFHbvTKd9Jbffpl",
+      "source_url": "https://www.facebook.com/alex.v.krol/posts/pfbid0EaLThNPj7w1qQgj7gARy1AfaNhemrdMgnkgKW6HPkX9pqgAG2AoFHbvTKd9Jbffpl"
+    },
+    {
+      "sample_id": "08-70f6bd46",
+      "source_post_id": "70f6bd46-66e1-4a4a-9541-440226f2386c",
+      "pfbid": "pfbid02bB6RYZw5tmyfw1tszUKvkFFEqYL1mqeUtBp5ESTRZEDDHy7ZMiHzuXDgSSYr1eXfl",
+      "source_url": "https://www.facebook.com/alex.v.krol/posts/pfbid02bB6RYZw5tmyfw1tszUKvkFFEqYL1mqeUtBp5ESTRZEDDHy7ZMiHzuXDgSSYr1eXfl"
+    },
+    {
+      "sample_id": "09-external-readme",
+      "source_post_id": null,
+      "pfbid": "pfbid02oj14ZFeSvyrrpcNN8dBJoJ6YsegA4gSeqtsSdhVMjkAYZU15aFuRH7msPN3EuE8al",
+      "source_url": "https://www.facebook.com/alex.v.krol/posts/pfbid02oj14ZFeSvyrrpcNN8dBJoJ6YsegA4gSeqtsSdhVMjkAYZU15aFuRH7msPN3EuE8al"
+    },
+    {
+      "sample_id": "10-external-course",
+      "source_post_id": null,
+      "pfbid": "pfbid02JR2XNZERaRexjMq9FAbaKjU9wmrCnP18s1zZSKMAKGz5XRpSG7SnzTTmatcW9ndxl",
+      "source_url": "https://www.facebook.com/alex.v.krol/posts/pfbid02JR2XNZERaRexjMq9FAbaKjU9wmrCnP18s1zZSKMAKGz5XRpSG7SnzTTmatcW9ndxl"
+    }
+  ]
+}

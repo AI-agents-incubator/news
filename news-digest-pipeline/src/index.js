@@ -15,6 +15,8 @@ import authRouter from './routes/auth.js';
 import { loadPro } from './pro-loader.js';
 import { startQueueManager } from './services/queue-manager.js';
 import { setupTelegramBot } from './services/telegram-bot.js';
+import { ensureDigestCardImagesDir } from './services/digest-card-store.js';
+import { skipOAuthCallbackLog } from './services/oauth-log-policy.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -45,7 +47,10 @@ app.use((req, res, next) => {
 
 // Middleware
 app.use(express.json({ limit: '5mb' }));
-app.use(morgan('dev'));
+// The Instagram OAuth callback carries a short-lived authorization code in its
+// query string. Threads will do the same. Morgan's default `dev` format logs the
+// full URL, so skip both endpoints rather than persisting either credential.
+app.use(morgan('dev', { skip: skipOAuthCallbackLog }));
 
 // Debug logging — only in development
 if (process.env.NODE_ENV !== 'production') {
@@ -113,6 +118,14 @@ const loginLimiter = rateLimit({
 });
 
 app.use(express.static(join(__dirname, 'public')));
+// Immutable digest-card JPEGs live in the mounted data volume. They are public
+// by design: the future Instagram Graph API must be able to fetch the exact
+// reviewed asset over the production HTTPS URL. UUID filenames are never
+// overwritten, so long cache headers are safe.
+app.use('/digest-card-images', express.static(ensureDigestCardImagesDir(config), {
+  maxAge: '365d',
+  immutable: true,
+}));
 
 // Auth status/login — public (status is read-only; login triggers Basic Auth)
 app.use('/api/auth', loginLimiter, authRouter);

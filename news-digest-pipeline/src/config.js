@@ -2,6 +2,7 @@ import { config as dotenvConfig } from 'dotenv';
 import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { requireOfficialProviderBaseUrl } from './services/provider-endpoints.js';
 
 dotenvConfig();
 
@@ -36,7 +37,11 @@ export const paths = {
   // lives inside the mounted ./data volume, so — unlike the base .env, which
   // sits in the image's ephemeral layer on the server — it survives image
   // rebuilds and is on a read-write mount where atomic writes succeed.
-  settingsEnv: join(parentDir, 'data', 'settings.env'),
+  // DATA_DIR overrides the volume location. Production never sets it (the compose
+  // mount is ./data); it exists so an offline bench can point the SAME code at a
+  // COPY of the production knowledge volume without writing into the repo's data/,
+  // which the test suite owns and freely deletes files from.
+  settingsEnv: join(process.env.DATA_DIR || join(parentDir, 'data'), 'settings.env'),
 };
 
 // Apply persisted dashboard overrides on top of the base environment. `override`
@@ -55,7 +60,7 @@ function readFileOrWarn(filePath, label) {
   }
 }
 
-function parseConfigMd(text) {
+export function parseConfigMd(text) {
   const result = {
     hashtag: '#новости',
     courseMention: '',
@@ -77,7 +82,23 @@ function parseConfigMd(text) {
     } else if (heading.includes('упоминание курса')) {
       result.courseMention = body.trim();
     } else if (heading.includes('граница') || heading.includes('отписка')) {
+      // `config.md` deliberately contains editorial instructions around the
+      // literal footer. They are not part of the reader-facing copy. Keeping
+      // the split here makes the code assembler deterministic and prevents an
+      // instruction such as "Вставлять ДОСЛОВНО" from leaking into Telegram.
+      const literalBody = body
+        .replace(/^Вставлять\s+ДОСЛОВНО,\s*без\s+изменений:\s*/i, '')
+        .trim();
+      result.boundaryIntent = literalBody
+        .split(/\n\s*добавлять в конце поста хе[шс]теги:\s*/i)[0]
+        .trim();
+    } else if (heading.startsWith('вставлять дословно')) {
+      // The production settings file keeps the literal footer in its own
+      // heading. Accept that equivalent structure as well as the historical
+      // inline instruction under "Граница".
       result.boundaryIntent = body.trim();
+    } else if (/^вставлять хе[шс]теги/.test(heading)) {
+      result.hashtagsSuffix = body.trim();
     }
   }
 
@@ -110,8 +131,11 @@ function buildConfig() {
     // LLM vendor selection. claudeModel above is the active model id, shared by
     // both vendors (it just holds whatever model id the user picked).
     llmVendor: process.env.LLM_VENDOR || 'anthropic', // 'anthropic' | 'openai'
-    anthropicBaseUrl: process.env.ANTHROPIC_BASE_URL || '',
-    openaiBaseUrl: process.env.OPENAI_BASE_URL || '',
+    // Empty selects the SDK default. Any non-empty value is verified here as
+    // well as in Settings so a hand-edited .env cannot redirect API keys and
+    // prompts to an arbitrary host.
+    anthropicBaseUrl: requireOfficialProviderBaseUrl('anthropic', process.env.ANTHROPIC_BASE_URL || ''),
+    openaiBaseUrl: requireOfficialProviderBaseUrl('openai', process.env.OPENAI_BASE_URL || ''),
     openaiApiKey: process.env.OPENAI_API_KEY || '', // secret
     openaiReasoningEffort: process.env.OPENAI_REASONING_EFFORT || '',
     geminiApiKey: process.env.GEMINI_API_KEY || '', // secret (planned integrations)
@@ -120,6 +144,14 @@ function buildConfig() {
     articleThreshold: parseInt(process.env.ARTICLE_THRESHOLD || '13', 10),
     maxArticlesPerDigest: parseInt(process.env.MAX_ARTICLES_PER_DIGEST || '17', 10),
     checkIntervalMs: parseInt(process.env.CHECK_INTERVAL_MS || '60000', 10),
+    // A worker must renew this lease while generating a digest. On a crash, the
+    // next automatic claim returns the expired batch to `new` instead of leaving
+    // it permanently stuck in `processing`.
+    processingLeaseMs: parseInt(process.env.PROCESSING_LEASE_MS || '1800000', 10),
+    // Max consecutive failed fetch attempts before the local fetcher gives up on
+    // an article and it is flipped to the terminal 'unfetchable' status (stops
+    // the endless Chrome re-open loop on URLs that never yield content).
+    maxFetchAttempts: parseInt(process.env.MAX_FETCH_ATTEMPTS || '5', 10),
     nodeEnv: process.env.NODE_ENV || 'development',
 
     // Active commentary scenario for Phase A: 'sarcastic' (prompt.md) or
@@ -135,25 +167,51 @@ function buildConfig() {
     youtubeAccessToken: process.env.YOUTUBE_ACCESS_TOKEN || '',
     youtubeChannelId: process.env.YOUTUBE_CHANNEL_ID || '',
 
-    // Planned integrations (placeholders for status display only — pipelines
-    // are not implemented yet).
+    // Email syndication via GetResponse (pro cluster, Autoposter). DRAFT-ONLY
+    // by design: the autoposter creates a draft newsletter and never sends it —
+    // the owner reviews and presses "send" inside GetResponse. API key is a
+    // secret; campaign id selects where the draft lands; from-field id is
+    // optional (empty → first available from-field is used).
+    getresponseApiKey: process.env.GETRESPONSE_API_KEY || '',
+    getresponseCampaignId: process.env.GETRESPONSE_CAMPAIGN_ID || '',
+    getresponseFromFieldId: process.env.GETRESPONSE_FROM_FIELD_ID || '',
+
+    // Substack syndication is performed by a separate server-side headed
+    // Chrome worker with a persistent profile. The main app never receives
+    // Substack cookies or account credentials. `draft_only` is the fail-closed
+    // default; web publication additionally requires the worker-side kill
+    // switch. Substack email sending is not supported by this pipeline.
+    substackPublisherUrl: process.env.SUBSTACK_PUBLISHER_URL || '',
+    substackPublisherToken: process.env.SUBSTACK_PUBLISHER_TOKEN || '',
+    substackPublicationUrl: process.env.SUBSTACK_PUBLICATION_URL || '',
+    substackMode: process.env.SUBSTACK_MODE || 'draft_only',
+    substackTitlePrefix: process.env.SUBSTACK_TITLE_PREFIX ?? '[TEST]',
+    substackWebPublishEnabled: (process.env.SUBSTACK_WEB_PUBLISH_ENABLED || 'false') === 'true',
+
+    // Instagram syndication (pro cluster, Autoposter). Graph API container→publish
+    // flow. A source image is used as-is; a no-image post prepares a persisted,
+    // text-grounded visual through FAL when configured, otherwise OpenAI Images.
+    // There is deliberately no static placeholder-image configuration.
     instagramAccessToken: process.env.INSTAGRAM_ACCESS_TOKEN || '',
     instagramAccountId: process.env.INSTAGRAM_ACCOUNT_ID || '',
+    // Threads uses its own OAuth token and Threads user id. The publisher keeps
+    // its two-step container/publish receipt in source_posts so a lost response
+    // can never turn a retry into a duplicate public Thread.
+    threadsAccessToken: process.env.THREADS_ACCESS_TOKEN || '',
+    threadsUserId: process.env.THREADS_USER_ID || '',
     tiktokAccessToken: process.env.TIKTOK_ACCESS_TOKEN || '',
 
-    // Comment moderation (pro cluster). These keys are core/shared: harmless in
-    // the public build (no pro folder → the poller never starts), same pattern
-    // as the youtube/instagram placeholders above. See docs/moderation-pipeline.md §9.
+    // Facebook Page comment moderation (News Pro only). Telegram moderation,
+    // the assistant and Gatekeeper are configured in the separate AIchatTG app.
     moderationMode: process.env.MODERATION_MODE || 'shadow', // shadow | live
-    // Judge model/vendor. Empty by default → the judge falls back to the digest's
-    // own claudeModel/llmVendor, so moderation uses the owner's configured model
-    // out of the box (no separate model introduced). Set these only to A/B-swap
-    // the judge independently of the digest.
     moderationModel: process.env.MODERATION_MODEL || '',
     moderationVendor: process.env.MODERATION_VENDOR || '',
-    // Prompt-improver (strong, offline). Empty → callers fall back to claudeModel.
     moderationImproverModel: process.env.MODERATION_IMPROVER_MODEL || '',
     moderationBanThreshold: parseFloat(process.env.MODERATION_BAN_THRESHOLD || '0.85'),
+    moderationOwnerAuthorIds: new Set(
+      (process.env.MODERATION_OWNER_AUTHOR_IDS || '')
+        .split(',').map((s) => s.trim()).filter(Boolean)
+    ),
     moderationHardDelete: (process.env.MODERATION_HARD_DELETE || 'false') === 'true',
     moderationPollPostLookback: parseInt(process.env.MODERATION_POLL_POST_LOOKBACK || '5', 10),
     moderationPollIntervalMs: parseInt(process.env.MODERATION_POLL_INTERVAL_MS || '300000', 10),

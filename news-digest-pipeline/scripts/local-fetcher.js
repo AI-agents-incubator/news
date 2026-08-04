@@ -3,33 +3,43 @@
 /**
  * Local Mac Fetcher for News Digest Pipeline
  *
- * Checks server for articles without content, opens them in Chrome,
- * extracts content via AppleScript, sends back to server.
+ * Checks the server for articles without content, opens each in a DEDICATED
+ * Chrome instance, extracts the rendered DOM, and sends the content back.
  *
- * No special Chrome flags needed — uses AppleScript to interact with
- * the real Chrome browser, which bypasses Perplexity's bot detection
- * (Cloudflare challenge; a headless browser does NOT pass it, the real
- * warmed profile does).
+ * ── Why a dedicated Chrome driven over CDP (not AppleScript) ──────────────────
+ * The previous version drove the user's Chrome via AppleScript
+ * (`tell application "Google Chrome"`). That is fragile in two ways that caused
+ * repeated multi-day outages:
+ *   1. AppleScript addresses whatever "Google Chrome" process is registered, so
+ *      any OTHER running Chrome (a Playwright/automation instance, the ChatGPT
+ *      desktop app, etc.) HIJACKS the target — and those run a profile with
+ *      "Allow JavaScript from Apple Events" off → `execute javascript` fails →
+ *      0 chars for EVERY article → the fetcher re-opened the same tabs forever.
+ *   2. The apple-events toggle is easy to lose and hard to guarantee.
  *
- * Non-intrusive: all navigation happens in a DEDICATED background Chrome
- * window addressed by id, and Chrome is never `activate`d. The user's own
- * window and tabs are never touched and focus is never stolen. If Chrome is
- * not running it is launched in the background (`open -g`).
+ * This version launches its OWN Chrome with a dedicated profile and a fixed
+ * --remote-debugging-port, and drives it over the Chrome DevTools Protocol.
+ * It is immune to other Chrome instances (separate user-data-dir) and needs no
+ * apple-events toggle. It stays alive between runs (relaunched only if the port
+ * is down), so there is no per-cycle window churn.
  *
- * Usage:
- *   node scripts/local-fetcher.js
+ * IMPORTANT: the fetch Chrome runs HEADED (offscreen). Headless is blocked by
+ * Perplexity's Cloudflare challenge ("Just a moment…"); a real headed Chrome
+ * passes it. Do NOT switch this to --headless.
  *
- * Requirements:
- *   - macOS with Google Chrome installed
- *   - Node.js 20+ (for native fetch and WebSocket)
- *   - cheerio package (already in project dependencies)
+ * Non-intrusive: the dedicated window is positioned far offscreen and the app is
+ * never activated, so the user's own Chrome, windows, and focus are untouched.
+ *
+ * Requires: macOS + Google Chrome, Node 20+ started with --experimental-websocket
+ * (global WebSocket; set via NODE_OPTIONS in the LaunchAgent), cheerio.
  */
 
-import { execSync } from 'child_process';
+import { spawn } from 'child_process';
 import { load as cheerioLoad } from 'cheerio';
 import { config as loadDotenv } from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { homedir } from 'os';
 import { validateArticleUrl } from '../src/services/url-validator.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -43,10 +53,21 @@ if (!SERVER || !API_KEY) {
   process.exit(1);
 }
 
+if (typeof WebSocket === 'undefined') {
+  console.error('Global WebSocket unavailable — run node with --experimental-websocket (NODE_OPTIONS).');
+  process.exit(1);
+}
+
 const AUTH_HEADERS = { Authorization: `Bearer ${API_KEY}` };
 
-const LOAD_WAIT_MS = 8000;       // Wait for page to load
-const BETWEEN_TABS_MS = 2000;    // Pause between processing tabs
+const CHROME_BIN = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+const DEBUG_PORT = parseInt(process.env.FETCH_CHROME_PORT || '9333', 10);
+// Dedicated, persistent profile — isolated from the user's Chrome so a second
+// instance can coexist and other Chromes never interfere.
+const PROFILE_DIR = join(homedir(), '.news-fetch-chrome');
+
+const LOAD_WAIT_MS = 9000;       // Wait for page (incl. Cloudflare JS) to settle
+const BETWEEN_TABS_MS = 1500;    // Pause between articles
 
 // Same selectors as extension/popup.js and article-fetcher.js
 const CONTENT_SELECTORS = [
@@ -70,35 +91,6 @@ function log(msg) {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-/**
- * Run AppleScript and return stdout. Returns null on error.
- */
-function runAppleScript(script) {
-  try {
-    return execSync(`osascript -e '${script.replace(/'/g, "'\"'\"'")}'`, {
-      encoding: 'utf-8',
-      timeout: 30000,
-    }).trim();
-  } catch (err) {
-    return null;
-  }
-}
-
-/**
- * Run multi-line AppleScript via heredoc.
- */
-function runAppleScriptMulti(script) {
-  try {
-    return execSync(`osascript <<'APPLESCRIPT'\n${script}\nAPPLESCRIPT`, {
-      encoding: 'utf-8',
-      timeout: 30000,
-      shell: '/bin/bash',
-    }).trim();
-  } catch (err) {
-    return null;
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -134,73 +126,145 @@ async function sendContentToServer(articleId, title, content) {
   return await res.json();
 }
 
+/**
+ * Report a per-article extraction failure to the server. After the server's
+ * configured attempt cap the article is flipped to 'unfetchable' and this
+ * fetcher stops re-selecting it — that is what breaks the endless every-cycle
+ * loop on URLs that never yield content. Best-effort: a failed report just means
+ * the article is retried next cycle (no worse than before).
+ */
+async function reportFetchFailure(articleId, reason) {
+  try {
+    const res = await fetch(`${SERVER}/api/articles/${articleId}/fetch-failed`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', ...AUTH_HEADERS },
+      body: JSON.stringify({ reason }),
+    });
+    if (res.ok) {
+      const r = await res.json();
+      if (r && r.capped) {
+        log(`  Gave up after ${r.attempts} attempts → marked unfetchable (will not retry).`);
+      }
+    }
+  } catch {
+    // best-effort — do not let a reporting failure abort the run
+  }
+}
+
 // ---------------------------------------------------------------------------
-// Chrome via AppleScript
+// Dedicated Chrome + Chrome DevTools Protocol
 // ---------------------------------------------------------------------------
 
-function isChromeRunning() {
-  const result = runAppleScript(
-    'tell application "System Events" to (name of processes) contains "Google Chrome"'
+async function chromeAlive() {
+  try {
+    const res = await fetch(`http://127.0.0.1:${DEBUG_PORT}/json/version`, {
+      signal: AbortSignal.timeout(2000),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Ensure the dedicated fetch Chrome is up on DEBUG_PORT. Reused across runs;
+ * launched (headed, far offscreen, background) only if the port is down.
+ * Returns true once the debug endpoint answers.
+ */
+async function ensureChrome() {
+  if (await chromeAlive()) return true;
+
+  log('Launching dedicated fetch Chrome (headed, offscreen)…');
+  const child = spawn(CHROME_BIN, [
+    `--remote-debugging-port=${DEBUG_PORT}`,
+    `--user-data-dir=${PROFILE_DIR}`,
+    '--no-first-run',
+    '--no-default-browser-check',
+    '--disable-background-networking',
+    '--disable-sync',
+    '--window-position=-3000,-3000',
+    '--window-size=1200,900',
+    'about:blank',
+  ], { detached: true, stdio: 'ignore' });
+  child.unref();
+
+  for (let i = 0; i < 40; i++) {
+    await sleep(500);
+    if (await chromeAlive()) return true;
+  }
+  return false;
+}
+
+/**
+ * Open a raw CDP session to a target's webSocketDebuggerUrl. Returns { send,
+ * once, close } — send(method, params) resolves with the command result; once
+ * (method) resolves on the next matching protocol event.
+ */
+function cdpConnect(wsUrl) {
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket(wsUrl);
+    const pending = new Map();
+    const listeners = new Map();
+    let idc = 0;
+    const timer = setTimeout(() => reject(new Error('CDP connect timeout')), 8000);
+
+    ws.onopen = () => {
+      clearTimeout(timer);
+      resolve({
+        send: (method, params = {}) => new Promise((res) => {
+          const id = ++idc;
+          pending.set(id, res);
+          ws.send(JSON.stringify({ id, method, params }));
+        }),
+        once: (method) => new Promise((res) => { listeners.set(method, res); }),
+        close: () => { try { ws.close(); } catch { /* noop */ } },
+      });
+    };
+    ws.onerror = () => { clearTimeout(timer); reject(new Error('CDP websocket error')); };
+    ws.onmessage = (ev) => {
+      let m;
+      try { m = JSON.parse(ev.data); } catch { return; }
+      if (m.id && pending.has(m.id)) {
+        pending.get(m.id)(m);
+        pending.delete(m.id);
+      } else if (m.method && listeners.has(m.method)) {
+        const cb = listeners.get(m.method);
+        listeners.delete(m.method);
+        cb(m);
+      }
+    };
+  });
+}
+
+/**
+ * Load a URL in a fresh tab of the dedicated Chrome and return the fully
+ * rendered outerHTML. Always closes the tab. Throws on protocol failure.
+ */
+async function fetchRenderedHtml(url) {
+  const tabRes = await fetch(
+    `http://127.0.0.1:${DEBUG_PORT}/json/new?${encodeURIComponent(url)}`,
+    { method: 'PUT', signal: AbortSignal.timeout(5000) },
   );
-  return result === 'true';
-}
+  if (!tabRes.ok) throw new Error(`open tab failed (${tabRes.status})`);
+  const tab = await tabRes.json();
 
-/**
- * Create a dedicated background Chrome window for fetching and return its id.
- * No `activate` — the app is not brought to the foreground, and the user's
- * existing windows/tabs are left completely alone. Returns null on failure.
- */
-function openFetchWindow() {
-  const script = `
-tell application "Google Chrome"
-  set newWin to make new window
-  return id of newWin
-end tell`;
-  return runAppleScriptMulti(script);
-}
-
-/**
- * Point the fetch window's single tab at a URL (reused across articles).
- */
-function navigateFetchTab(winId, url) {
-  const script = `
-tell application "Google Chrome"
-  set URL of active tab of window id ${winId} to "${url}"
-end tell`;
-  return runAppleScriptMulti(script);
-}
-
-/**
- * Read the current URL of the fetch window's tab.
- */
-function getFetchTabUrl(winId) {
-  const script = `
-tell application "Google Chrome"
-  return URL of active tab of window id ${winId}
-end tell`;
-  return runAppleScriptMulti(script);
-}
-
-/**
- * Read the full DOM of the fetch window's tab.
- */
-function getFetchTabSource(winId) {
-  const script = `
-tell application "Google Chrome"
-  return execute (active tab of window id ${winId}) javascript "document.documentElement.outerHTML"
-end tell`;
-  return runAppleScriptMulti(script);
-}
-
-/**
- * Close the dedicated fetch window when the run is done.
- */
-function closeFetchWindow(winId) {
-  const script = `
-tell application "Google Chrome"
-  close window id ${winId}
-end tell`;
-  runAppleScriptMulti(script);
+  const c = await cdpConnect(tab.webSocketDebuggerUrl);
+  try {
+    await c.send('Page.enable');
+    await c.send('Runtime.enable');
+    // Race the load event against a fixed budget: some pages fire load before we
+    // attach (tab opened already navigated), so the timeout is the real backstop.
+    await Promise.race([c.once('Page.loadEventFired'), sleep(LOAD_WAIT_MS)]);
+    await sleep(1200); // settle SPA/Cloudflare hydration
+    const res = await c.send('Runtime.evaluate', {
+      expression: 'document.documentElement.outerHTML',
+      returnByValue: true,
+    });
+    return (res.result && res.result.result && res.result.result.value) || '';
+  } finally {
+    c.close();
+    fetch(`http://127.0.0.1:${DEBUG_PORT}/json/close/${tab.id}`).catch(() => {});
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -268,87 +332,59 @@ async function main() {
 
   log(`Found ${articles.length} article(s) without content.`);
 
-  // Check Chrome is running — launch in the BACKGROUND (-g) so it never
-  // steals focus from whatever the user is doing.
-  if (!isChromeRunning()) {
-    log('Google Chrome is not running. Starting it in the background...');
-    execSync('open -g -a "Google Chrome"');
-    await sleep(3000);
-  }
-
-  // One dedicated background window for the whole run, addressed by id. The
-  // user's own window/tabs are never touched.
-  const fetchWin = openFetchWindow();
-  if (!fetchWin) {
-    log('Could not open a dedicated Chrome window (is "Allow JavaScript from Apple Events" enabled?). Aborting.');
-    process.exit(1);
+  // Systemic gate: if the dedicated fetch Chrome can't be reached, abort the
+  // whole run WITHOUT touching any article (no false 'unfetchable' marks). The
+  // articles stay queued and fetch normally once Chrome is reachable again.
+  if (!(await ensureChrome())) {
+    log(`ABORT: dedicated fetch Chrome not reachable on port ${DEBUG_PORT}. Articles left untouched.`);
+    process.exit(0);
   }
 
   let enriched = 0;
   let failed = 0;
 
-  try {
-    for (const article of articles) {
-      log(`Processing: ${article.url}`);
+  for (const article of articles) {
+    log(`Processing: ${article.url}`);
 
-      try {
-        // Validate against the shared contract (HTTPS + perplexity.ai + no
-        // control chars) before the URL reaches the AppleScript string — the
-        // interpolation sink where a crafted URL would be command injection.
-        const v = validateArticleUrl(article.url);
-        if (!v.ok) {
-          log(`  Skipping untrusted URL (${v.error}): ${article.url}`);
-          failed++;
-          continue;
-        }
-
-        // Point the dedicated window's tab at this article (reused per article).
-        navigateFetchTab(fetchWin, v.href);
-
-        // Wait for page to load
-        await sleep(LOAD_WAIT_MS);
-
-        // Verify the tab navigated
-        const currentUrl = getFetchTabUrl(fetchWin);
-        if (!currentUrl) {
-          log(`  Could not read fetch tab URL, skipping.`);
-          failed++;
-          continue;
-        }
-
-        // Get page source
-        const html = getFetchTabSource(fetchWin);
-        if (!html || html.length < 200) {
-          log(`  Got empty or too short page source (${html?.length || 0} chars), skipping.`);
-          failed++;
-          continue;
-        }
-
-        // Extract content
-        const { title, content } = extractFromHtml(html);
-
-        if (!content || content.length < 100) {
-          log(`  Content too short (${content?.length || 0} chars), skipping.`);
-          failed++;
-          continue;
-        }
-
-        // Send back to server
-        await sendContentToServer(article.id, title, content);
-        log(`  Sent to server: "${title}" (${content.length} chars)`);
-        enriched++;
-
-        // Small pause between articles
-        await sleep(BETWEEN_TABS_MS);
-
-      } catch (err) {
-        log(`  Error: ${err.message}`);
+    try {
+      // Validate against the shared contract (HTTPS + perplexity.ai + no control
+      // chars) before the URL is used.
+      const v = validateArticleUrl(article.url);
+      if (!v.ok) {
+        log(`  Skipping untrusted URL (${v.error}): ${article.url}`);
+        await reportFetchFailure(article.id, `invalid_url: ${v.error}`);
         failed++;
+        continue;
       }
+
+      const html = await fetchRenderedHtml(v.href);
+      if (!html || html.length < 200) {
+        log(`  Got empty or too short page source (${html?.length || 0} chars), skipping.`);
+        await reportFetchFailure(article.id, `empty_source: ${html?.length || 0} chars`);
+        failed++;
+        continue;
+      }
+
+      const { title, content } = extractFromHtml(html);
+
+      if (!content || content.length < 100) {
+        log(`  Content too short (${content?.length || 0} chars), skipping.`);
+        await reportFetchFailure(article.id, `content_too_short: ${content?.length || 0} chars`);
+        failed++;
+        continue;
+      }
+
+      await sendContentToServer(article.id, title, content);
+      log(`  Sent to server: "${title}" (${content.length} chars)`);
+      enriched++;
+
+      await sleep(BETWEEN_TABS_MS);
+
+    } catch (err) {
+      log(`  Error: ${err.message}`);
+      await reportFetchFailure(article.id, `error: ${err.message}`);
+      failed++;
     }
-  } finally {
-    // Always tidy up the dedicated window.
-    closeFetchWindow(fetchWin);
   }
 
   log(`Done. Enriched: ${enriched}, Failed: ${failed}, Total: ${articles.length}`);

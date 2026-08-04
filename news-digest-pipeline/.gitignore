@@ -3,6 +3,16 @@ data/*.db
 data/*.db-journal
 data/*.db-wal
 data/*.db-shm
+data/digest-card-images/
+# Assistant eval bench keeps its own SQLite file (never shares one with the live
+# ledger); its WAL sidecars are runtime state like any other DB's.
+data/eval/*.db-journal
+data/eval/*.db-wal
+data/eval/*.db-shm
+# Dashboard-managed env overrides — runtime state, per-environment (prod keeps
+# its own in the mounted volume). Never commit.
+data/settings.env
+data/course-index-current-course.json
 .env
 .env.bak*
 .env.*.bak

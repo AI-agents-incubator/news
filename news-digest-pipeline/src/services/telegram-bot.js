@@ -1,4 +1,4 @@
-import { insertArticle, getArticleCount } from '../db/index.js';
+import { insertArticle, getArticleCount, getReadyArticleCount } from '../db/index.js';
 import { validateArticleUrl } from './url-validator.js';
 
 const URL_REGEX = /https?:\/\/[^\s<>"')\]]+/g;
@@ -54,6 +54,7 @@ async function setWebhook(botToken, webhookUrl, secretToken) {
  */
 async function handleStatus(botToken, chatId) {
   const newCount = getArticleCount('new');
+  const readyCount = getReadyArticleCount();
   const processingCount = getArticleCount('processing');
   const usedCount = getArticleCount('used');
   const totalCount = getArticleCount();
@@ -62,6 +63,7 @@ async function handleStatus(botToken, chatId) {
     '<b>📊 Статус</b>',
     '',
     `Новых: ${newCount}`,
+    `Готово к дайджесту: ${readyCount}`,
     `В обработке: ${processingCount}`,
     `Использовано: ${usedCount}`,
     `Всего: ${totalCount}`,
@@ -73,26 +75,70 @@ async function handleStatus(botToken, chatId) {
 /**
  * Handle /generate command - trigger manual digest generation.
  */
-async function handleGenerate(botToken, chatId, config) {
-  const newCount = getArticleCount('new');
-
-  if (newCount === 0) {
-    await sendMessage(botToken, chatId, '⚠️ Нет новых статей для дайджеста.');
-    return;
-  }
-
-  await sendMessage(botToken, chatId, `⏳ Генерация дайджеста из ${newCount} статей...`);
-
+export async function handleGenerate(botToken, chatId, config, {
+  claimArticles,
+  getDatabase,
+  generatePhase1,
+  getReviewRun,
+} = {}) {
   try {
-    const { getNewArticles, getDb } = await import('../db/index.js');
-    const { generateDigest } = await import('./digest-generator.js');
+    const {
+      claimReadyArticles,
+      getDb,
+      getDigestReviewRun,
+      getOpenQueueDigestReviewRun,
+    } = await import('../db/index.js');
+    const { CLASSIC_DIGEST_TARGET_SIZE, generateDigest } = await import('./digest-generator.js');
 
-    const limit = Math.min(newCount, config.maxArticlesPerDigest);
-    const articles = getNewArticles(limit);
-    const db = getDb();
+    const openRun = getOpenQueueDigestReviewRun();
+    if (openRun) {
+      await sendMessage(
+        botToken,
+        chatId,
+        `⚠️ Предыдущий первый проход требует восстановления в панели дайджеста. Новый batch не взят. Run ID: ${openRun.id}`
+      );
+      return;
+    }
 
-    const digestId = await generateDigest(db, articles, config);
-    await sendMessage(botToken, chatId, `✅ Дайджест сгенерирован (${articles.length} статей). ID: ${digestId}`);
+    const articles = (claimArticles || claimReadyArticles)({
+      limit: CLASSIC_DIGEST_TARGET_SIZE,
+      threshold: CLASSIC_DIGEST_TARGET_SIZE,
+      leaseMs: config.processingLeaseMs,
+    });
+    if (articles.length === 0) {
+      await sendMessage(botToken, chatId, '⚠️ Для полного batch пока недостаточно готовых статей. Материалы без текста ещё извлекаются.');
+      return;
+    }
+
+    await sendMessage(botToken, chatId, `⏳ Этап 1: обработка ${articles.length} готовых статей...`);
+
+    const db = (getDatabase || getDb)();
+
+    const runId = await (generatePhase1 || generateDigest)(db, articles, config, {
+      leaseId: articles[0].processing_lease_id,
+    });
+    const run = (getReviewRun || getDigestReviewRun)(runId);
+    if (run?.status === 'failed') {
+      await sendMessage(
+        botToken,
+        chatId,
+        `❌ Этап 1 завершился с ошибкой. Откройте проход в панели дайджеста. Run ID: ${runId}`
+      );
+      return;
+    }
+    if (run?.status === 'phase1_processing' || run?.status === 'phase1_attention_required') {
+      await sendMessage(
+        botToken,
+        chatId,
+        `⚠️ Этап 1 остановлен и требует явного восстановления в панели дайджеста. Автоматического повтора модели не было. Run ID: ${runId}`
+      );
+      return;
+    }
+    await sendMessage(
+      botToken,
+      chatId,
+      `✅ Этап 1 завершён (${articles.length} статей). Проверьте новости в панели дайджеста. Run ID: ${runId}`
+    );
   } catch (err) {
     console.error('[telegram-bot] Generate error:', err);
     await sendMessage(botToken, chatId, `❌ Ошибка генерации: ${err.message}`);
@@ -166,6 +212,7 @@ async function handleUrls(botToken, chatId, messageId, text, config) {
   }
 
   const newCount = getArticleCount('new');
+  const readyCount = getReadyArticleCount();
 
   let reply = `✓ Сохранено: ${saved}`;
   if (duplicates > 0) {
@@ -176,8 +223,8 @@ async function handleUrls(botToken, chatId, messageId, text, config) {
   }
   reply += `\nВсего новых: ${newCount}`;
 
-  if (newCount >= config.articleThreshold) {
-    reply += `\n\n📰 Накопилось ${newCount} статей. Дайджест будет сгенерирован.`;
+  if (readyCount >= config.articleThreshold) {
+    reply += `\n\n📰 Готово ${readyCount} статей. Дайджест будет сгенерирован.`;
   }
 
   await sendMessage(botToken, chatId, reply);
@@ -220,7 +267,7 @@ export async function handleTelegramUpdate(update, config) {
       'Отправьте ссылку — она будет сохранена для дайджеста.',
       '',
       '/status — количество статей',
-      '/generate — сгенерировать дайджест сейчас',
+      '/generate — выполнить этап 1 и отправить новости на проверку',
     ].join('\n');
     await sendMessage(botToken, chatId, helpText);
     return;

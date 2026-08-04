@@ -1,11 +1,22 @@
-import { getArticleCount, getNewArticles } from '../db/index.js';
-import { generateDigest } from './digest-generator.js';
-import { notifyDigestReady } from './notifier.js';
-import { getDb } from '../db/index.js';
+import {
+  claimReadyArticles,
+  getDb,
+  getDigestReviewRun,
+  getOpenQueueDigestReviewRun,
+} from '../db/index.js';
+import { CLASSIC_DIGEST_TARGET_SIZE, generateDigest } from './digest-generator.js';
+import { notifyDigestReviewReady } from './notifier.js';
 
 let running = false;
 
-async function processQueue(config) {
+export async function processQueue(config, {
+  claimArticles = claimReadyArticles,
+  getDatabase = getDb,
+  generatePhase1 = generateDigest,
+  getReviewRun = getDigestReviewRun,
+  getOpenQueueRun = getOpenQueueDigestReviewRun,
+  notifyReviewReady = notifyDigestReviewReady,
+} = {}) {
   if (running) {
     return;
   }
@@ -13,26 +24,33 @@ async function processQueue(config) {
   running = true;
 
   try {
-    const newCount = getArticleCount('new');
-
-    if (newCount < config.articleThreshold) {
+    const openRun = getOpenQueueRun();
+    if (openRun) {
+      console.log(`[queue-manager] Existing Phase 1 run requires recovery: ${openRun.id}`);
+      if (config.ntfyTopic) await notifyReviewReady(config.ntfyTopic, openRun);
       return;
     }
 
-    const limit = Math.min(newCount, config.maxArticlesPerDigest);
-    const articles = getNewArticles(limit);
+    const articles = claimArticles({
+      limit: CLASSIC_DIGEST_TARGET_SIZE,
+      threshold: CLASSIC_DIGEST_TARGET_SIZE,
+      leaseMs: config.processingLeaseMs,
+    });
 
-    console.log(`[queue-manager] Processing ${articles.length} articles into digest`);
+    if (articles.length === 0) return;
 
-    const db = getDb();
-    const digestId = await generateDigest(db, articles, config);
+    console.log(`[queue-manager] Running digest Phase 1 for ${articles.length} articles`);
 
-    console.log(`[queue-manager] Digest generated: ${digestId}`);
+    const db = getDatabase();
+    const runId = await generatePhase1(db, articles, config, {
+      leaseId: articles[0].processing_lease_id,
+    });
+
+    const run = getReviewRun(runId);
+    console.log(`[queue-manager] Phase 1 finished with status ${run?.status || 'unknown'}: ${runId}`);
 
     if (config.ntfyTopic) {
-      const { getDigest } = await import('../db/index.js');
-      const digest = getDigest(digestId);
-      await notifyDigestReady(config.ntfyTopic, digest);
+      await notifyReviewReady(config.ntfyTopic, run);
     }
   } catch (err) {
     console.error('[queue-manager] Error processing queue:', err.message);
@@ -42,7 +60,7 @@ async function processQueue(config) {
 }
 
 export function startQueueManager(config) {
-  console.log(`[queue-manager] Started (interval: ${config.checkIntervalMs}ms, threshold: ${config.articleThreshold})`);
+  console.log(`[queue-manager] Started (interval: ${config.checkIntervalMs}ms, exact batch size: ${CLASSIC_DIGEST_TARGET_SIZE})`);
 
   const intervalId = setInterval(() => processQueue(config), config.checkIntervalMs);
 

@@ -1,5 +1,13 @@
 # Image Generation API для Instagram-пайплайна — Обновление апрель 2026
 
+> **Историческое исследование, не runtime contract (обновлено 2026-07-20).**
+> Текущий application path определён в `cover-lab/README.md`: FAL FLUX Dev
+> создаёт background, а Recraft V3 image-to-image был частично проверен для
+> model-rendered typography после того, как Flux composition в r02 исказил
+> кириллицу. r03 также не доказал точную читаемую кириллицу; ни один маршрут не
+> является publish-ready. Цены, рейтинги и альтернативы ниже не являются usage
+> accounting и не дают права на deploy или Instagram publication.
+
 ## Что изменилось с конца 2025 года
 
 Ландшафт сервисов генерации изображений радикально обновился в период январь–апрель 2026. Ключевые тренды: (1) появились **единые модели генерации + редактирования** (Qwen Image 2.0, Seedream 5 Lite) — больше не нужно два разных эндпоинта для t2i и img2img; (2) цены рухнули вниз — GPT Image Mini теперь $0.005/image, FLUX.2 Klein — $0.014–0.015; (3) **Nano Banana 2** (Gemini 3.1 Flash Image) вышел 26 февраля 2026 и добавил нативный 4:5 с API. Happy Horse — это **видеогенератор** (Alibaba/Taotian), не изображения, и для данного пайплайна не подходит.
@@ -147,7 +155,7 @@ Happy Horse (HappyHorse-1.0) — это 15B-параметровая **виде�
 
 ***
 
-## Обновлённые рекомендации (апрель 2026)
+## Исторические рекомендации (апрель 2026, не текущий runtime choice)
 
 ### Стратегия A: Максимальный контроль стиля → Recraft V3 (без изменений)
 
@@ -165,7 +173,7 @@ FLUX.2 Klein 4B при $0.014/image — дешевле в 3–4 раза ост�
 
 | Приоритет | Модель | Почему |
 |-----------|--------|--------|
-| **Основной** | **Recraft V3** | Единственный постоянный style_id; нативный 4:5; чистый API |
+| **Исторический кандидат** | **Recraft V3** | Постоянный style_id; нативный 4:5; чистый API — но r03 не подтвердил точную кириллицу |
 | **Резерв A** | **FLUX.2 Klein 4B** | В 3× дешевле, 10× быстрее; multi-ref style; $1.26/90 изобр[^25] |
 | **Резерв B** | **Seedream 5 Lite** | Example-based style learning; OpenAI-совместимый API Through Together[^17] |
 | **Эксперимент** | **Nano Banana 2** | Скорость 1–3 с; Gemini-экосистема если промпты тоже через Gemini[^14] |
@@ -235,4 +243,3 @@ FLUX.2 Klein 4B при $0.014/image — дешевле в 3–4 раза ост�
 29. [Appendix - Recraft | AI](https://www.recraft.ai/docs/api-reference/appendix) - Aspect ratio ( w:h ): defines the proportional relationship between width and height without specify...
 
 30. [Usage - Recraft | AI](https://www.recraft.ai/docs/api-reference/usage)
-

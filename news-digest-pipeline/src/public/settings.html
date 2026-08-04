@@ -516,7 +516,7 @@
       <a class="tab" href="index.html">Дайджесты</a>
       <a class="tab" href="syndication.html">Публикация</a>
       <a class="tab active" href="settings.html">Настройки</a>
-      <a class="tab" href="moderation.html">Модерация</a>
+      <a class="tab" href="moderation.html">Модерация FB</a>
     </nav>
 
     <div class="auth-bar" id="authbar">
@@ -731,12 +731,12 @@
             <div class="field">
               <label>Anthropic endpoint (ANTHROPIC_BASE_URL)</label>
               <input type="text" id="f-anthropicBaseUrl" placeholder="${esc((g.anthropicBaseUrl && g.anthropicBaseUrl.placeholder) || 'https://api.anthropic.com')}" value="${esc((g.anthropicBaseUrl && g.anthropicBaseUrl.value) || '')}">
-              <div class="hint">Оставьте пустым для значения по умолчанию.</div>
+              <div class="hint">Оставьте пустым для значения по умолчанию. Допускается только официальный Anthropic HTTPS endpoint.</div>
             </div>
             <div class="field">
               <label>OpenAI endpoint (OPENAI_BASE_URL)</label>
               <input type="text" id="f-openaiBaseUrl" placeholder="${esc((g.openaiBaseUrl && g.openaiBaseUrl.placeholder) || 'https://api.openai.com/v1')}" value="${esc((g.openaiBaseUrl && g.openaiBaseUrl.value) || '')}">
-              <div class="hint">Оставьте пустым для значения по умолчанию.</div>
+              <div class="hint">Оставьте пустым для значения по умолчанию. Допускается только официальный OpenAI HTTPS endpoint.</div>
             </div>
             <div class="field">
               <label>Окружение (NODE_ENV)</label>
@@ -821,6 +821,24 @@
             <div class="status-note"><span class="badge on">Только Публичная страница (Page)</span> Легальный путь. Постинг в личный профиль не поддерживается.</div>
             ${secretRow('Page ID', pub.facebook.pageId)}
             ${secretRow('Page Access Token', pub.facebook.pageAccessToken)}
+            <div class="group-subtitle">GetResponse</div>
+            <div class="status-note"><span class="badge on">Только черновик</span> Отправка подписчикам выполняется владельцем вручную в GetResponse.</div>
+            ${secretRow('API Key', pub.getresponse.apiKey)}
+            ${secretRow('Campaign ID', pub.getresponse.campaignId)}
+            ${secretRow('From Field ID', pub.getresponse.fromFieldId)}
+            <div class="group-subtitle">Substack</div>
+            <div class="status-note">
+              <span class="badge ${pub.substack.configured ? 'on' : 'off'}">${pub.substack.configured ? 'Настроен' : 'Не настроен'}</span>
+              Режим: <code>${esc(pub.substack.mode)}</code>;
+              web kill switch: <code>${pub.substack.webPublishEnabled ? 'ON' : 'OFF'}</code>;
+              email-рассылка: <code>DISABLED</code>.
+            </div>
+            <div class="preview-grid">
+              <div class="pv"><b>Publication:</b> ${esc(pub.substack.publicationUrl || '—')}</div>
+              <div class="pv"><b>Publisher:</b> ${esc(pub.substack.publisherUrl || '—')}</div>
+              <div class="pv"><b>Title prefix:</b> ${esc(pub.substack.titlePrefix || '—')}</div>
+            </div>
+            ${secretRow('Publisher Token', pub.substack.publisherToken)}
             <div class="group-subtitle">API ключи</div>
             ${secretRow('Anthropic API Key', pub.anthropicApiKey)}
             ${secretRow('OpenAI API Key', pub.openaiApiKey)}

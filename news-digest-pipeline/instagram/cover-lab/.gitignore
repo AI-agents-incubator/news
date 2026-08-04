@@ -1,0 +1,4 @@
+# A run is an immutable local review artifact. Keep the directory, but do not
+# accidentally stage generated Facebook text or model output.
+runs/*
+!runs/.gitkeep

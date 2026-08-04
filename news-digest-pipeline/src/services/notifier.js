@@ -27,3 +27,21 @@ export async function notifyDigestReady(topic, digest) {
     tags: 'newspaper',
   });
 }
+
+export async function notifyDigestReviewReady(topic, run) {
+  const itemCount = Number(run?.items_count ?? run?.items?.length ?? 0);
+  const failed = run?.status === 'failed';
+  const attention = run?.status === 'phase1_processing'
+    || run?.status === 'phase1_attention_required';
+  return notify(topic, {
+    title: failed ? 'Digest Phase 1 Failed'
+      : (attention ? 'Digest Phase 1 Needs Recovery' : 'Digest Phase 1 Ready'),
+    message: failed
+      ? `Phase 1 failed for review run ${run?.id || 'unknown'}. Open the digest dashboard for details.`
+      : (attention
+          ? `Review run ${run?.id || 'unknown'} is incomplete. Recover it in the digest dashboard; no automatic model retry was made.`
+          : `Phase 1 completed for ${itemCount} articles. Review run ${run?.id || 'unknown'} before assembling the digest.`),
+    priority: 'default',
+    tags: failed || attention ? 'warning,newspaper' : 'newspaper,memo',
+  });
+}

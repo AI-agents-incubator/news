@@ -1,0 +1,3 @@
+# Immutable local review artifacts may contain source digest text and model output.
+runs/*
+!runs/.gitkeep

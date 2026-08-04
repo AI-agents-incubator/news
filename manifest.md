@@ -1,2 +1,4 @@
-project_type=
-project_priority=
+project_name=news-digest-pipeline
+repo_access=private-solo
+project_type=web_application
+project_priority=active
